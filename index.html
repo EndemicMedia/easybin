@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Trash Separator</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <style>
+        body {
+            padding: 20px;
+            background-color: #f8f9fa;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+
+        .app-title {
+            color: #2c8c5e;
+            margin-bottom: 15px; /* Reduced margin */
+            font-weight: bold;
+        }
+
+        /* Settings Container */
+        .settings-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #e9ecef;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .settings-container label {
+            margin-bottom: 0;
+            margin-right: 5px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            color: #495057;
+        }
+        .settings-container select {
+            padding: 5px 8px;
+            border: 1px solid #ced4da;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            background-color: #fff;
+            flex-grow: 1; /* Allow selects to take available space */
+            max-width: 45%; /* Prevent them from getting too wide */
+        }
+        .setting-group {
+            display: flex;
+            align-items: center;
+            width: 48%; /* Adjust width as needed */
+        }
+
+
+        #camera-container {
+            position: relative;
+            margin-bottom: 20px;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            background-color: #e9ecef;
+            max-width: 400px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #camera {
+            display: block;
+            width: 100%;
+            height: auto;
+            max-height: 300px;
+            border-radius: 15px;
+        }
+
+        #camera-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 3px dashed #28a745;
+            border-radius: 15px;
+            pointer-events: none;
+            box-sizing: border-box;
+        }
+
+        .button-container {
+             text-align: center;
+             margin-bottom: 25px;
+        }
+
+        #scan-button {
+            background-color: #28a745;
+            border-color: #28a745;
+            font-size: 1.2rem;
+            padding: 12px 35px;
+            border-radius: 50px;
+            font-weight: 600;
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+        #scan-button .fas { /* Ensure icon aligns well */
+            margin-right: 8px;
+        }
+
+        #scan-button:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+        }
+
+        #scan-button:disabled {
+            background-color: #adb5bd;
+            border-color: #adb5bd;
+            cursor: not-allowed;
+        }
+
+        #output {
+            text-align: center;
+            min-height: 50px;
+        }
+
+        #result-card {
+            display: none;
+            border-radius: 15px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.12);
+            margin-top: 25px;
+            overflow: hidden;
+            border: none;
+            background-color: #fff;
+        }
+
+        .bin-header {
+            padding: 25px 20px;
+            color: white;
+            text-align: center;
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 150px;
+        }
+
+        .bin-icon {
+            font-size: 3.5rem;
+            margin-bottom: 10px;
+        }
+
+        .bin-name-text {
+            font-size: 1.6rem;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+
+        .bin-material {
+            font-size: 0.9rem;
+            margin-top: 5px;
+            font-weight: normal;
+            opacity: 0.9;
+        }
+
+        /* --- Standard Bin Colors (Fallbacks / Base) --- */
+        .recyclable { background-color: #007bff; }
+        .organic { background-color: #28a745; }
+        .general-waste { background-color: #6c757d; }
+        .hazardous { background-color: #dc3545; }
+
+        /* --- US Colors --- */
+        .recyclable-us { background-color: #0052cc; }
+        .organic-us { background-color: #218838; }
+        .general-waste-us { background-color: #343a40; }
+        .hazardous-us { background-color: #c82333; }
+
+        /* --- German Colors --- */
+        .recyclable-de { background-color: #FBC02D; } /* Yellow */
+        .paper-de { background-color: #1976D2; } /* Blue */
+        .organic-de { background-color: #689F38; } /* Green/Brown */
+        .general-waste-de { background-color: #455A64; } /* Dark gray/Black */
+        .hazardous-de { background-color: #D32F2F; } /* Red */
+
+        /* --- Italian Colors --- */
+        .recyclable-it { background-color: #FBC02D; } /* Yellow */
+        .paper-it { background-color: #1976D2; } /* Blue */
+        .glass-it { background-color: #388E3C; } /* Green */
+        .organic-it { background-color: #5D4037; } /* Brown */
+        .general-waste-it { background-color: #546E7A; } /* Gray */
+        .hazardous-it { background-color: #C62828; } /* Red */
+
+
+        .item-details {
+            padding: 25px;
+        }
+
+        .item-name {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .bin-instructions {
+            font-weight: 500;
+            font-size: 1.2rem;
+            margin-top: 20px;
+            margin-bottom: 15px;
+            line-height: 1.6;
+            color: #212529;
+            border-left: 4px solid; /* Color set by JS */
+            padding-left: 15px;
+        }
+
+        .item-description { /* AI Analysis Text */
+            margin-bottom: 20px;
+            line-height: 1.6;
+            color: #555;
+            font-size: 0.95rem; /* Slightly smaller */
+        }
+
+
+        .country-note {
+            font-size: 0.85rem;
+            color: #6c757d;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 5px solid rgba(0, 0, 0, 0.1);
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border-left-color: #28a745;
+            animation: spin 1s ease infinite;
+            margin: 30px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .instructions-box {
+            background-color: #e9f7ef;
+            border-left: 5px solid #28a745;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            font-size: 0.95rem;
+        }
+        .instructions-box p {
+            margin-bottom: 0;
+        }
+    </style>
+    <script src="https://js.puter.com/v2/"></script>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="text-center app-title"><i class="fas fa-recycle mr-2"></i><span id="app-title-text">Smart Trash Separator</span></h1>
+
+        <!-- Settings -->
+        <div class="settings-container">
+             <div class="setting-group">
+                <label for="language-select" id="language-label">Language:</label>
+                <select id="language-select">
+                    <option value="en">English</option>
+                    <option value="de">Deutsch</option>
+                    <option value="it">Italiano</option>
+                </select>
+            </div>
+             <div class="setting-group">
+                <label for="country-select" id="country-label">Region:</label>
+                <select id="country-select">
+                    <option value="us">United States</option>
+                    <option value="de">Germany</option>
+                    <option value="it">Italy</option>
+                    <!-- Add more countries here if needed -->
+                </select>
+            </div>
+        </div>
+
+        <div class="instructions-box">
+            <p id="instructions-text"><strong>How to use:</strong> Point your camera at an item, then tap "Identify Item". The app will show you the correct bin.</p>
+        </div>
+
+        <div id="camera-container">
+            <video id="camera" playsinline autoplay muted></video>
+            <div id="camera-overlay"></div>
+        </div>
+
+        <div class="button-container">
+            <button id="scan-button" class="btn btn-primary btn-lg" disabled>
+                <i class="fas fa-camera"></i><span id="scan-button-text">Identify Item</span>
+            </button>
+        </div>
+
+        <div id="output" aria-live="polite">
+            <!-- Spinner or error messages appear here -->
+        </div>
+
+        <div id="result-card" class="card" aria-live="polite">
+            <div id="bin-header" class="bin-header">
+                <!-- Icon, Bin Name, and Material Summary dynamically added here -->
+            </div>
+            <div class="item-details">
+                <div id="item-name" class="item-name">
+                    <!-- Item name will appear here -->
+                </div>
+                <div id="bin-instructions" class="bin-instructions">
+                    <!-- Bin instructions will appear here -->
+                </div>
+                <hr>
+                <div id="item-description" class="item-description">
+                    <!-- Item description (AI reasoning) will appear here -->
+                </div>
+                <div id="country-note" class="country-note">
+                    <!-- Country-specific note will appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const video = document.getElementById('camera');
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        const scanButton = document.getElementById('scan-button');
+        const outputDiv = document.getElementById('output');
+        const resultCard = document.getElementById('result-card');
+        const binHeader = document.getElementById('bin-header');
+        const itemName = document.getElementById('item-name');
+        const itemDescription = document.getElementById('item-description');
+        const binInstructions = document.getElementById('bin-instructions');
+        const countryNote = document.getElementById('country-note');
+        const languageSelect = document.getElementById('language-select');
+        const countrySelect = document.getElementById('country-select');
+
+        // --- App State ---
+        let userCountry = 'us'; // Default country code, will be updated
+        let currentLanguage = 'en'; // Default language
+        let lastAIResponse = null; // Store the last successful AI response object
+        let lastResultData = null; // Store processed data for re-rendering
+
+        // --- Translations ---
+        const translations = {
+            en: {
+                appTitle: "Smart Trash Separator",
+                languageLabel: "Language:",
+                countryLabel: "Region:",
+                instructionsTitle: "How to use:",
+                instructionsText: "Point your camera at an item, then tap \"Identify Item\". The app will show you the correct bin.",
+                scanButtonText: "Identify Item",
+                errorCameraNotFound: "Camera not found. Please ensure a camera is connected and enabled.",
+                errorCameraDenied: "Camera access denied. Please grant permission in your browser settings.",
+                errorCameraInit: "Failed to initialize camera. Please try again.",
+                errorAIResponse: "Received an unclear response from AI. Please try again.",
+                errorAIStructure: "Received invalid response structure or empty content from AI.",
+                errorAIAnalyze: "Error analyzing item:",
+                errorUnknownAI: "Unknown AI error. Please try again.",
+                errorCapture: "Could not capture image or prepare AI call. Please try again.",
+                aiAnalysisPrefix: "AI Analysis:",
+                // Bin Names (used if specific country name isn't set)
+                binRecycling: "Recycling Bin",
+                binOrganic: "Organics / Compost",
+                binHazardous: "Hazardous Waste",
+                binGeneral: "Trash / Landfill",
+                // Material Summaries
+                materialRecyclable: "Recyclable Material",
+                materialOrganic: "Organic Material",
+                materialHazardous: "Hazardous Material",
+                materialMixed: "Mixed/Non-Recyclable",
+                // Country Notes
+                countryNoteUS: "Note: Rules vary widely by city/county. Check local guidelines.",
+                countryNoteDE: "Hinweis: Regeln können je nach Stadt/Region variieren.",
+                countryNoteIT: "Nota: Le regole possono variare localmente.",
+                // Instructions (Examples - more needed in displayTrashResult)
+                instructionRecyclingUS: "Place in the BLUE Recycling Bin. Usually accepts: {material}. Check local rules!",
+                instructionOrganicUS: "Place in the GREEN Organics/Compost Bin (if available). Food scraps, yard waste.",
+                instructionHazardousUS: "HAZARDOUS WASTE: DO NOT put in trash/recycling. Take to a designated drop-off facility.",
+                instructionGeneralUS: "Place in the BLACK/GRAY Trash Bin (Landfill).",
+                 instructionRecyclingDE_Yellow: "Bitte in die GELBE TONNE/SACK (Verpackungen). Leichtverpackungen aus Kunststoff, Metall, Verbundstoffen.",
+                 instructionRecyclingDE_Blue: "Bitte in die BLAUE TONNE (Papier/Karton).",
+                 instructionOrganicDE: "Bitte in die BRAUNE oder GRÜNE TONNE (Biomüll). Essensreste, Gartenabfälle.",
+                 instructionHazardousDE: "SONDERMÜLL: Nicht in den Hausmüll! Bitte zum Wertstoffhof oder Schadstoffmobil bringen.",
+                 instructionGeneralDE: "Bitte in die SCHWARZE oder GRAUE TONNE (Restmüll).",
+                 instructionRecyclingIT_Yellow: "Getta nel contenitore GIALLO (Plastica e Metalli). Svuotati e schiacciati se possibile.",
+                 instructionRecyclingIT_Blue: "Getta nel contenitore BLU (Carta e Cartone). Pulito e asciutto.",
+                 instructionRecyclingIT_Green: "Getta nel contenitore VERDE (Vetro). Senza tappo, svuotato.",
+                 instructionOrganicIT: "Getta nel contenitore MARRONE (Organico/Umido). Scarti di cibo, rifiuti giardino.",
+                 instructionHazardousIT: "RIFIUTI PERICOLOSI (es. Pile, Farmaci): Portare ai punti di raccolta dedicati o farmacie.",
+                 instructionGeneralIT: "Getta nel contenitore GRIGIO (Secco Residuo / Indifferenziata).",
+            },
+            de: {
+                appTitle: "Intelligenter Müllsortierer",
+                languageLabel: "Sprache:",
+                countryLabel: "Region:",
+                instructionsTitle: "Anleitung:",
+                instructionsText: "Richten Sie Ihre Kamera auf einen Gegenstand und tippen Sie auf \"Gegenstand erkennen\". Die App zeigt Ihnen den richtigen Behälter.",
+                scanButtonText: "Gegenstand erkennen",
+                errorCameraNotFound: "Kamera nicht gefunden. Stellen Sie sicher, dass eine Kamera angeschlossen und aktiviert ist.",
+                errorCameraDenied: "Kamerazugriff verweigert. Bitte erteilen Sie die Berechtigung in Ihren Browsereinstellungen.",
+                errorCameraInit: "Kamera konnte nicht initialisiert werden. Bitte versuchen Sie es erneut.",
+                errorAIResponse: "Unklare Antwort von der KI erhalten. Bitte versuchen Sie es erneut.",
+                errorAIStructure: "Ungültige Antwortstruktur oder leerer Inhalt von der KI erhalten.",
+                errorAIAnalyze: "Fehler bei der Analyse des Gegenstands:",
+                errorUnknownAI: "Unbekannter KI-Fehler. Bitte versuchen Sie es erneut.",
+                errorCapture: "Bild konnte nicht aufgenommen oder KI-Aufruf vorbereitet werden. Bitte versuchen Sie es erneut.",
+                aiAnalysisPrefix: "KI-Analyse:",
+                // Bin Names
+                binRecycling_Yellow: "Gelbe Tonne / Sack",
+                binRecycling_Blue: "Papiertonne",
+                binOrganic: "Biotonne",
+                binHazardous: "Sondermüll",
+                binGeneral: "Restmülltonne",
+                // Material Summaries
+                materialRecyclable_Yellow: "Verpackung",
+                materialRecyclable_Blue: "Papier/Karton",
+                materialOrganic: "Organisches Material",
+                materialHazardous: "Gefahrstoff",
+                materialMixed: "Gemischt/Nicht recyclebar",
+                // Country Notes (already translated in 'en' block, but can be repeated)
+                countryNoteDE: "Hinweis: Regeln können je nach Stadt/Region variieren.",
+                // Instructions are referenced from 'en' block keys for structure
+            },
+            it: {
+                appTitle: "Separatore Rifiuti Intelligente",
+                languageLabel: "Lingua:",
+                countryLabel: "Regione:",
+                instructionsTitle: "Come usare:",
+                instructionsText: "Punta la fotocamera verso un oggetto, poi tocca \"Identifica Oggetto\". L'app ti mostrerà il bidone corretto.",
+                scanButtonText: "Identifica Oggetto",
+                errorCameraNotFound: "Fotocamera non trovata. Assicurati che sia collegata e abilitata.",
+                errorCameraDenied: "Accesso alla fotocamera negato. Concedi l'autorizzazione nelle impostazioni del browser.",
+                errorCameraInit: "Inizializzazione fotocamera fallita. Riprova.",
+                errorAIResponse: "Risposta non chiara ricevuta dall'IA. Riprova.",
+                errorAIStructure: "Struttura della risposta non valida o contenuto vuoto ricevuto dall'IA.",
+                errorAIAnalyze: "Errore durante l'analisi dell'oggetto:",
+                errorUnknownAI: "Errore IA sconosciuto. Riprova.",
+                errorCapture: "Impossibile catturare l'immagine o preparare la chiamata IA. Riprova.",
+                aiAnalysisPrefix: "Analisi IA:",
+                // Bin Names
+                binRecycling_Yellow: "Plastica e Metalli",
+                binRecycling_Blue: "Carta e Cartone",
+                binRecycling_Green: "Vetro",
+                binOrganic: "Organico / Umido",
+                binHazardous: "Rifiuti Pericolosi",
+                binGeneral: "Secco Residuo / Indifferenziata",
+                 // Material Summaries
+                materialRecyclable_Yellow: "Plastica/Metallo",
+                materialRecyclable_Blue: "Carta/Cartone",
+                materialRecyclable_Green: "Vetro",
+                materialOrganic: "Materiale Organico",
+                materialHazardous: "Materiale Pericoloso",
+                materialMixed: "Misto/Non Riciclabile",
+                // Country Notes
+                countryNoteIT: "Nota: Le regole possono variare localmente.",
+                 // Instructions are referenced from 'en' block keys for structure
+            }
+        };
+
+        // --- UI Update Functions ---
+        function showSpinner() {
+            outputDiv.innerHTML = '<div class="spinner"></div>';
+            resultCard.style.display = 'none';
+            scanButton.disabled = true;
+        }
+
+        function hideSpinner() {
+            outputDiv.innerHTML = '';
+            scanButton.disabled = false;
+        }
+
+        function displayError(messageKey, detail = '') {
+             const lang = currentLanguage;
+             const message = translations[lang][messageKey] || messageKey; // Fallback to key if translation missing
+             outputDiv.innerHTML = `<div class="alert alert-danger">${message} ${detail}</div>`;
+             resultCard.style.display = 'none';
+             scanButton.disabled = false;
+        }
+
+        function updateUIText(lang) {
+            const t = translations[lang];
+            if (!t) {
+                console.warn(`Language "${lang}" not found in translations.`);
+                return;
+            }
+            document.documentElement.lang = lang; // Set HTML lang attribute
+            document.getElementById('app-title-text').textContent = t.appTitle;
+            document.getElementById('language-label').textContent = t.languageLabel;
+            document.getElementById('country-label').textContent = t.countryLabel;
+            document.getElementById('instructions-text').innerHTML = `<strong>${t.instructionsTitle}</strong> ${t.instructionsText}`;
+            document.getElementById('scan-button-text').textContent = t.scanButtonText;
+
+            // If a result is showing, update its text parts (instructions, country note)
+             if (lastResultData && resultCard.style.display === 'block') {
+                 console.log("Updating result card text for new language:", lang);
+                 // Re-generate instructions and notes using the new language
+                 const { instructionsText, countryNoteText } = generateResultText(lastResultData.binType, lastResultData.specificMaterialType, lastResultData.lowerResponse);
+                 binInstructions.textContent = instructionsText;
+                 countryNote.textContent = countryNoteText;
+                 // Update potentially translatable parts of the header if needed (e.g., material summary)
+                 // This might require storing more data in lastResultData or re-calculating
+                 // For simplicity, we'll assume bin name/icon are language-independent enough for now
+                 // but material summary might need translation
+                 const { headerMaterialSummary } = generateBinDetails(lastResultData.binType, lastResultData.specificMaterialType);
+                 const binMaterialDiv = binHeader.querySelector('.bin-material');
+                 if (binMaterialDiv) binMaterialDiv.textContent = headerMaterialSummary;
+
+                 // Update AI Analysis prefix
+                 itemDescription.textContent = `${t.aiAnalysisPrefix} ${lastResultData.reasoning}`;
+
+             }
+        }
+
+
+        // --- Core Logic Functions ---
+        async function detectUserCountry() {
+            // (Keep the same country detection logic as before)
+             if (navigator.geolocation) {
+                try {
+                    const position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000 });
+                    });
+                    const { latitude, longitude } = position.coords;
+                    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&accept-language=en`);
+                    if (response.ok) {
+                         const data = await response.json();
+                         if (data && data.address && data.address.country_code) {
+                             console.log("Country detected via geolocation:", data.address.country_code.toLowerCase());
+                             return data.address.country_code.toLowerCase();
+                         }
+                    }
+                } catch (e) { console.log("Geolocation failed or permission denied:", e.message); }
+            }
+            try {
+                const response = await fetch('https://ipapi.co/json/');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data && data.country_code) {
+                        console.log("Country detected via IP:", data.country_code.toLowerCase());
+                        return data.country_code.toLowerCase();
+                    }
+                }
+            } catch (e) { console.log("IP geolocation failed:", e); }
+            const browserLocale = navigator.language || navigator.userLanguage;
+            if (browserLocale) {
+                const localeParts = browserLocale.split('-');
+                if (localeParts.length > 1) {
+                     console.log("Country detected via browser locale:", localeParts[1].toLowerCase());
+                    return localeParts[1].toLowerCase();
+                }
+            }
+            console.log("Using default country: us");
+            return 'us';
+        }
+
+        async function initApp() {
+            // 1. Detect country
+            const detectedCountry = await detectUserCountry();
+            // 2. Set country dropdown value (if valid)
+            const countryOption = countrySelect.querySelector(`option[value="${detectedCountry}"]`);
+            if (countryOption) {
+                countrySelect.value = detectedCountry;
+                userCountry = detectedCountry; // Update state
+            } else {
+                userCountry = countrySelect.value; // Use default dropdown value if detection fails or is unsupported
+            }
+            console.log("Initial country set to:", userCountry.toUpperCase());
+
+            // 3. Set initial language (default 'en' or potentially from browser)
+            currentLanguage = languageSelect.value; // Or use navigator.language to guess
+            updateUIText(currentLanguage); // Apply initial translations
+
+            // 4. Initialize camera
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } }
+                });
+                video.srcObject = stream;
+                video.onloadedmetadata = () => {
+                     const aspectRatio = video.videoWidth / video.videoHeight;
+                     canvas.width = 640;
+                     canvas.height = canvas.width / aspectRatio;
+                     scanButton.disabled = false;
+                     console.log("Camera initialized.");
+                };
+            } catch (error) {
+                console.error('Initialization Error:', error);
+                if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") { displayError("errorCameraNotFound"); }
+                else if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") { displayError("errorCameraDenied"); }
+                else { displayError("errorCameraInit"); }
+            }
+        }
+
+        // Helper to generate bin details based on type and country
+        function generateBinDetails(binType, specificMaterialType) {
+            let binClass = '';
+            let binName = '';
+            let binIconClass = '';
+            let headerMaterialSummary = '';
+            const lang = currentLanguage; // Use current language for names/summaries
+            const t = translations[lang] || translations.en; // Fallback to English
+
+            // Determine Header Material Summary (Translatable)
+            if (specificMaterialType) {
+                 headerMaterialSummary = t[`materialRecyclable_${specificMaterialType.charAt(0).toUpperCase() + specificMaterialType.slice(1)}`] || t.materialRecyclable; // e.g. materialRecyclable_Paper
+             } else if (binType === 'hazardous') {
+                 headerMaterialSummary = t.materialHazardous;
+             } else if (binType === 'organic') {
+                 headerMaterialSummary = t.materialOrganic;
+             } else if (binType === 'general-waste') {
+                 headerMaterialSummary = t.materialMixed;
+             } else { // Generic recyclable
+                 headerMaterialSummary = t.materialRecyclable;
+             }
+
+
+            if (userCountry === 'de') {
+                switch (binType) {
+                    case 'recyclable':
+                        if (specificMaterialType === 'paper') {
+                            binClass = 'paper-de'; binName = t.binRecycling_Blue || 'Papiertonne'; binIconClass = 'fa-file-alt';
+                            headerMaterialSummary = t.materialRecyclable_Blue || "Papier/Karton";
+                        } else {
+                            binClass = 'recyclable-de'; binName = t.binRecycling_Yellow || 'Gelbe Tonne / Sack'; binIconClass = 'fa-box-open';
+                             headerMaterialSummary = t.materialRecyclable_Yellow || "Verpackung";
+                        } break;
+                    case 'organic': binClass = 'organic-de'; binName = t.binOrganic || 'Biotonne'; binIconClass = 'fa-leaf'; break;
+                    case 'hazardous': binClass = 'hazardous-de'; binName = t.binHazardous || 'Sondermüll'; binIconClass = 'fa-exclamation-triangle'; break;
+                    default: binClass = 'general-waste-de'; binName = t.binGeneral || 'Restmülltonne'; binIconClass = 'fa-trash-alt';
+                }
+            } else if (userCountry === 'it') {
+                 switch (binType) {
+                    case 'recyclable':
+                        if (specificMaterialType === 'paper') {
+                            binClass = 'paper-it'; binName = t.binRecycling_Blue || 'Carta e Cartone'; binIconClass = 'fa-file-alt';
+                            headerMaterialSummary = t.materialRecyclable_Blue || "Carta/Cartone";
+                        } else if (specificMaterialType === 'glass') {
+                            binClass = 'glass-it'; binName = t.binRecycling_Green || 'Vetro'; binIconClass = 'fa-wine-bottle';
+                            headerMaterialSummary = t.materialRecyclable_Green || "Vetro";
+                        } else {
+                            binClass = 'recyclable-it'; binName = t.binRecycling_Yellow || 'Plastica e Metalli'; binIconClass = 'fa-recycle';
+                            headerMaterialSummary = t.materialRecyclable_Yellow || "Plastica/Metallo";
+                        } break;
+                    case 'organic': binClass = 'organic-it'; binName = t.binOrganic || 'Organico / Umido'; binIconClass = 'fa-leaf'; break;
+                    case 'hazardous': binClass = 'hazardous-it'; binName = t.binHazardous || 'Rifiuti Pericolosi'; binIconClass = 'fa-exclamation-triangle'; break;
+                    default: binClass = 'general-waste-it'; binName = t.binGeneral || 'Secco Residuo / Indifferenziata'; binIconClass = 'fa-trash-alt';
+                }
+            } else { // US / Default
+                switch (binType) {
+                    case 'recyclable': binClass = 'recyclable-us'; binName = t.binRecycling || 'Recycling Bin'; binIconClass = 'fa-recycle'; break;
+                    case 'organic': binClass = 'organic-us'; binName = t.binOrganic || 'Organics / Compost'; binIconClass = 'fa-leaf'; break;
+                    case 'hazardous': binClass = 'hazardous-us'; binName = t.binHazardous || 'Hazardous Waste'; binIconClass = 'fa-exclamation-triangle'; break;
+                    default: binClass = 'general-waste-us'; binName = t.binGeneral || 'Trash / Landfill'; binIconClass = 'fa-trash-alt';
+                }
+            }
+            return { binClass, binName, binIconClass, headerMaterialSummary };
+        }
+
+        // Helper to generate instructions and country note text
+        function generateResultText(binType, specificMaterialType, lowerResponse = "") {
+             const lang = currentLanguage;
+             const t = translations[lang] || translations.en;
+             let instructionsText = "";
+             let countryNoteText = "";
+
+             if (userCountry === 'de') {
+                 countryNoteText = t.countryNoteDE;
+                 switch (binType) {
+                     case 'recyclable': instructionsText = (specificMaterialType === 'paper') ? t.instructionRecyclingDE_Blue : t.instructionRecyclingDE_Yellow; break;
+                     case 'organic': instructionsText = t.instructionOrganicDE; break;
+                     case 'hazardous': instructionsText = t.instructionHazardousDE; break;
+                     default: instructionsText = t.instructionGeneralDE;
+                 }
+             } else if (userCountry === 'it') {
+                 countryNoteText = t.countryNoteIT;
+                 switch (binType) {
+                     case 'recyclable':
+                         if (specificMaterialType === 'paper') instructionsText = t.instructionRecyclingIT_Blue;
+                         else if (specificMaterialType === 'glass') instructionsText = t.instructionRecyclingIT_Green;
+                         else instructionsText = t.instructionRecyclingIT_Yellow;
+                         break;
+                     case 'organic': instructionsText = t.instructionOrganicIT; break;
+                     case 'hazardous': instructionsText = t.instructionHazardousIT; break;
+                     default: instructionsText = t.instructionGeneralIT;
+                 }
+             } else { // US / Default
+                 countryNoteText = t.countryNoteUS;
+                 switch (binType) {
+                     case 'recyclable':
+                         // Basic material name replacement for US example
+                         let materialDetail = 'Clean Recyclables';
+                         if (specificMaterialType === 'paper') materialDetail = 'Paper/Cardboard';
+                         else if (specificMaterialType === 'glass') materialDetail = 'Glass Bottles/Jars';
+                         else if (specificMaterialType === 'plastic') materialDetail = 'Plastic Bottles/Jugs (#1, #2, #5 often)';
+                         else if (specificMaterialType === 'metal') materialDetail = 'Metal Cans/Foil';
+                         instructionsText = (t.instructionRecyclingUS || "").replace('{material}', materialDetail);
+                         break;
+                     case 'organic': instructionsText = t.instructionOrganicUS; break;
+                     case 'hazardous': instructionsText = t.instructionHazardousUS; break;
+                     default: instructionsText = t.instructionGeneralUS;
+                 }
+             }
+             // Fallback if no instruction found
+             if (!instructionsText) instructionsText = "Check local guidelines for proper disposal.";
+
+             return { instructionsText, countryNoteText };
+        }
+
+
+        function displayTrashResult(aiResponseObject) {
+            hideSpinner();
+            lastAIResponse = aiResponseObject; // Store the raw response object
+            const responseText = String(aiResponseObject.message.content).trim();
+            console.log("Processing AI response content:", responseText);
+
+            if (!responseText || responseText.length < 5) {
+                 displayError("errorAIResponse");
+                 lastResultData = null; // Clear last result on error
+                 return;
+            }
+
+            let binType = 'general-waste';
+            let specificMaterialType = null;
+            let extractedName = "Identified Item"; // Default
+            let reasoning = responseText; // Use full content as reasoning
+
+            const lowerResponse = responseText.toLowerCase();
+
+            // --- Keyword-based Material and Bin Type Detection (same logic as before) ---
+             if (lowerResponse.includes('hazardous') || lowerResponse.includes('battery') || lowerResponse.includes('electronic') || lowerResponse.includes('chemical') || lowerResponse.includes('paint') || lowerResponse.includes('medication') || lowerResponse.includes('light bulb') || lowerResponse.includes('toxic')) { binType = 'hazardous'; }
+             else if (lowerResponse.includes('organic') || lowerResponse.includes('food') || lowerResponse.includes('compost') || lowerResponse.includes('vegetable') || lowerResponse.includes('fruit') || lowerResponse.includes('plant') || lowerResponse.includes('peel') || lowerResponse.includes('grounds') || lowerResponse.includes('eggshell')) { binType = 'organic'; specificMaterialType = 'food'; }
+             else if (lowerResponse.includes('paper') || lowerResponse.includes('cardboard')) { if (!lowerResponse.includes('soiled') && !lowerResponse.includes('greasy') && !lowerResponse.includes('waxed') && !lowerResponse.includes("tissue") && !lowerResponse.includes("napkin")) { binType = 'recyclable'; specificMaterialType = 'paper'; } }
+             else if (lowerResponse.includes('glass')) { if (!lowerResponse.includes('broken') || lowerResponse.includes('bottle') || lowerResponse.includes('jar')) { binType = 'recyclable'; specificMaterialType = 'glass'; } }
+             else if (lowerResponse.includes('plastic') || lowerResponse.includes('polymer')) { if (!lowerResponse.includes('film') && !lowerResponse.includes('bag') && !lowerResponse.includes('styrofoam') && !lowerResponse.includes('not recyclable')) { binType = 'recyclable'; specificMaterialType = 'plastic'; } }
+             else if (lowerResponse.includes('metal') || lowerResponse.includes('aluminum') || lowerResponse.includes('steel') || lowerResponse.includes('tin can')) { if (!lowerResponse.includes('mixed material') || lowerResponse.includes('scrap metal')) { binType = 'recyclable'; specificMaterialType = 'metal'; } }
+             else if (lowerResponse.includes('recyclable')) { binType = 'recyclable'; /* Try to guess material later if needed */ }
+
+            // --- Extract Item Name (Simple Approach - same logic as before) ---
+            const namePatterns = [ /appears to be (?:a|an) ([^\.\,]+)/i, /looks like (?:a|an) ([^\.\,]+)/i, /this is (?:a|an) ([^\.\,]+)/i, /identified as (?:a|an) ([^\.\,]+)/i, /^(?:a|an) ([^\.\,]+) that should/i, /^([A-Za-z\s]+)\./i ];
+             for (const pattern of namePatterns) { const match = responseText.match(pattern); if (match && match[1] && match[1].length < 50) { extractedName = match[1].trim().replace(/\b\w/g, l => l.toUpperCase()); break; } }
+
+            // --- Store Processed Data ---
+             lastResultData = {
+                 binType,
+                 specificMaterialType,
+                 extractedName,
+                 reasoning,
+                 lowerResponse // Store for potential re-evaluation if needed
+             };
+
+            // --- Generate Bin Details & Text ---
+            const { binClass, binName, binIconClass, headerMaterialSummary } = generateBinDetails(binType, specificMaterialType);
+            const { instructionsText, countryNoteText } = generateResultText(binType, specificMaterialType, lowerResponse);
+            const t = translations[currentLanguage] || translations.en;
+
+            // --- Update UI Elements ---
+            binHeader.className = `bin-header ${binClass}`;
+            binHeader.innerHTML = `
+                <i class="fas ${binIconClass} fa-3x bin-icon"></i>
+                <span class="bin-name-text">${binName}</span>
+                <div class="bin-material">${headerMaterialSummary}</div>
+            `;
+            itemName.textContent = extractedName;
+            itemDescription.textContent = `${t.aiAnalysisPrefix} ${reasoning}`;
+            binInstructions.textContent = instructionsText;
+            binInstructions.style.borderLeftColor = window.getComputedStyle(binHeader).backgroundColor;
+            countryNote.textContent = countryNoteText;
+
+            resultCard.style.display = 'block';
+            resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        // --- Event Listeners ---
+        languageSelect.addEventListener('change', (event) => {
+            currentLanguage = event.target.value;
+            console.log("Language changed to:", currentLanguage);
+            updateUIText(currentLanguage);
+            // No need to re-run AI, just update text elements
+        });
+
+        countrySelect.addEventListener('change', (event) => {
+            userCountry = event.target.value;
+            console.log("Country changed to:", userCountry.toUpperCase());
+            // If a result is currently displayed, re-render it with the new country rules
+            if (lastAIResponse && resultCard.style.display === 'block') {
+                console.log("Re-displaying last result with new country rules...");
+                displayTrashResult(lastAIResponse); // Re-run display logic with the stored AI response
+            }
+        });
+
+        scanButton.onclick = function () {
+            showSpinner();
+            try {
+                context.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = canvas.toDataURL('image/png');
+
+                const prompt = `Analyze the primary item in this image.
+1. Identify the item (e.g., "Plastic Bottle", "Apple Core", "Newspaper", "AA Battery").
+2. What is its main material? (e.g., "Plastic (PET)", "Organic", "Paper", "Metal/Chemical").
+3. Based ONLY on the material and common disposal rules, which bin should it go in: recyclable, organic, general_waste, or hazardous?
+4. Provide a brief reason based on the material.
+Respond concisely. Example: "Plastic Bottle. Material: Plastic (PET). Bin: recyclable. Reason: Clean PET plastic is widely recycled."`;
+
+                console.log("Sending prompt to AI...");
+                puter.ai.chat(prompt, imageData)
+                    .then(response => {
+                        console.log("Raw AI Response Received:", response);
+
+                        if (typeof response === 'object' && response !== null &&
+                            typeof response.message === 'object' && response.message !== null &&
+                            typeof response.message.content === 'string' && response.message.content.length > 0)
+                        {
+                            displayTrashResult(response); // Pass the whole response object
+                        } else {
+                            console.error("Response structure invalid or content empty. Response:", response);
+                            throw new Error(translations[currentLanguage].errorAIStructure || "Received invalid response structure or empty content from AI.");
+                        }
+                    })
+                    .catch(error => {
+                        console.error('AI Error:', error);
+                        displayError("errorAIAnalyze", error.message || (translations[currentLanguage].errorUnknownAI || 'Unknown AI error. Please try again.'));
+                        lastResultData = null; // Clear last result on error
+                    });
+
+            } catch (error) {
+                 console.error("Error during capture/AI call setup:", error);
+                 displayError("errorCapture");
+                 hideSpinner();
+                 lastResultData = null; // Clear last result on error
+            }
+        };
+
+        // --- Start the app ---
+        initApp();
+
+    </script>
+</body>
+</html>
