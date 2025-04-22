@@ -1,0 +1,8 @@
+Guideline: Always fix indentation issues in JavaScript files to maintain consistent code style.
+Guideline: When finding a SyntaxError in JavaScript, check for issues with braces, quotes, and unexpected tokens.
+Guideline: When the last chat message is a write operation that was interrupted, start by re-reading the last 10 lines of the previous file, then use the block edit tool to search the last 3 lines of the truncated file and replace with the rest of the script.
+Guideline: Whenever a multi-step operation is underway, keep track using a progress measure, noting what's next and what's left added to every response step.
+Guideline: Never use write_file for an existing file, always fix with search and replace or sed to replace specific problematic lines.
+Guideline: Start with small targeted edits adding comments to delimit the start and end of code sections when working with large files.
+Guideline: Always provide fallback text strings for UI elements to prevent "undefined" from appearing when translations are missing.
+Guideline: When working with multilingual applications, ensure all UI strings are translated in all supported languages.
