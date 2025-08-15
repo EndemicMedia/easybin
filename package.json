@@ -1,0 +1,28 @@
+{
+  "name": "easybin",
+  "version": "1.0.0",
+  "description": "Smart waste sorting application",
+  "main": "index.html",
+  "scripts": {
+    "test": "jest --testPathIgnorePatterns='.*\\.spec\\.js$'",
+    "test:watch": "jest --watch --testPathIgnorePatterns='.*\\.spec\\.js$'",
+    "test:e2e": "playwright test",
+    "test:coverage": "jest --coverage --testPathIgnorePatterns='.*\\.spec\\.js$'",
+    "test:all": "npm run test && npm run test:e2e",
+    "serve": "npx serve -s . -l 3000",
+    "dev": "npx live-server --port=3000"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.1",
+    "@testing-library/jest-dom": "^6.1.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "playwright": "^1.54.1"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup.js"
+    ]
+  }
+}

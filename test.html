@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyBin Test</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="h-screen flex flex-col bg-gradient-to-br from-gray-50 via-green-50 to-blue-50 font-sans">
+    <div class="flex-grow flex items-center justify-center">
+        <div class="text-center">
+            <h1 class="text-4xl font-bold gradient-text mb-4">EasyBin Test</h1>
+            <p class="text-gray-600 mb-4">Testing basic functionality</p>
+            <button id="test-button" class="modern-btn bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600">
+                <i class="fas fa-check mr-2"></i>Test Button
+            </button>
+            <div id="test-output" class="mt-4 text-sm text-gray-600"></div>
+        </div>
+    </div>
+
+    <script>
+        console.log('Test page loaded');
+        
+        // Simple test script
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOM loaded');
+            
+            const testButton = document.getElementById('test-button');
+            const testOutput = document.getElementById('test-output');
+            
+            if (testButton && testOutput) {
+                console.log('Elements found');
+                testButton.addEventListener('click', () => {
+                    testOutput.textContent = 'Button clicked! CSS and basic JS working.';
+                    console.log('Button clicked');
+                });
+                testOutput.textContent = 'Page loaded successfully. Click the button to test.';
+            } else {
+                console.error('Elements not found');
+            }
+        });
+    </script>
+</body>
+</html>

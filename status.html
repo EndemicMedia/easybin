@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EasyBin - Status Check</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="bg-gradient-to-br from-gray-50 via-green-50 to-blue-50 min-h-screen p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-4xl font-bold gradient-text text-center mb-8">EasyBin Status Check</h1>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Core App Status -->
+            <div class="stats-card">
+                <h3 class="font-semibold text-lg mb-3 flex items-center">
+                    <i class="fas fa-cog mr-2 text-blue-500"></i>
+                    Core App
+                </h3>
+                <div id="core-status" class="space-y-2">
+                    <div class="text-sm">Checking...</div>
+                </div>
+            </div>
+            
+            <!-- Modern Features Status -->
+            <div class="stats-card">
+                <h3 class="font-semibold text-lg mb-3 flex items-center">
+                    <i class="fas fa-sparkles mr-2 text-purple-500"></i>
+                    Modern Features
+                </h3>
+                <div id="features-status" class="space-y-2">
+                    <div class="text-sm">Checking...</div>
+                </div>
+            </div>
+            
+            <!-- Files Status -->
+            <div class="stats-card">
+                <h3 class="font-semibold text-lg mb-3 flex items-center">
+                    <i class="fas fa-file-code mr-2 text-green-500"></i>
+                    Files
+                </h3>
+                <div id="files-status" class="space-y-2">
+                    <div class="text-sm">Checking...</div>
+                </div>
+            </div>
+            
+            <!-- CSS Status -->
+            <div class="stats-card">
+                <h3 class="font-semibold text-lg mb-3 flex items-center">
+                    <i class="fas fa-paint-brush mr-2 text-pink-500"></i>
+                    CSS & Styling
+                </h3>
+                <div id="css-status" class="space-y-2">
+                    <div class="text-sm">Checking...</div>
+                </div>
+            </div>
+            
+            <!-- Camera Status -->
+            <div class="stats-card">
+                <h3 class="font-semibold text-lg mb-3 flex items-center">
+                    <i class="fas fa-camera mr-2 text-orange-500"></i>
+                    Camera Access
+                </h3>
+                <div id="camera-status" class="space-y-2">
+                    <div class="text-sm">Checking...</div>
+                </div>
+            </div>
+            
+            <!-- PWA Status -->
+            <div class="stats-card">
+                <h3 class="font-semibold text-lg mb-3 flex items-center">
+                    <i class="fas fa-mobile-alt mr-2 text-indigo-500"></i>
+                    PWA Features
+                </h3>
+                <div id="pwa-status" class="space-y-2">
+                    <div class="text-sm">Checking...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-8 text-center">
+            <a href="index.html" class="modern-btn bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 inline-block">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to EasyBin
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Status checking functions
+        function checkStatus(elementId, checks) {
+            const container = document.getElementById(elementId);
+            container.innerHTML = '';
+            
+            checks.forEach(check => {
+                const statusDiv = document.createElement('div');
+                statusDiv.className = 'flex items-center text-sm';
+                
+                const icon = check.status ? 
+                    '<i class="fas fa-check-circle text-green-500 mr-2"></i>' : 
+                    '<i class="fas fa-times-circle text-red-500 mr-2"></i>';
+                
+                statusDiv.innerHTML = icon + check.name;
+                container.appendChild(statusDiv);
+            });
+        }
+        
+        // Check core app
+        const coreChecks = [
+            { name: 'app.js loaded', status: typeof scanButton !== 'undefined' },
+            { name: 'translations.js loaded', status: typeof translations !== 'undefined' },
+            { name: 'binStyles.js loaded', status: typeof binColorClasses !== 'undefined' },
+            { name: 'analytics.js loaded', status: typeof window.easyBinAnalytics !== 'undefined' }
+        ];
+        checkStatus('core-status', coreChecks);
+        
+        // Check modern features
+        const featureChecks = [
+            { name: 'modern-features.js loaded', status: typeof window.modernFeatures !== 'undefined' },
+            { name: 'EasyBinModernFeatures class', status: typeof EasyBinModernFeatures !== 'undefined' },
+            { name: 'Floating Action Buttons', status: document.getElementById('fab-container') !== null },
+            { name: 'Modern CSS loaded', status: getComputedStyle(document.body).getPropertyValue('--primary-green') !== '' }
+        ];
+        checkStatus('features-status', featureChecks);
+        
+        // Check files
+        const fileChecks = [
+            { name: 'index.html', status: true },
+            { name: 'styles.css', status: document.querySelector('link[href="styles.css"]') !== null },
+            { name: 'manifest.json', status: document.querySelector('link[rel="manifest"]') !== null },
+            { name: 'service worker', status: 'serviceWorker' in navigator }
+        ];
+        checkStatus('files-status', fileChecks);
+        
+        // Check CSS
+        const cssChecks = [
+            { name: 'Tailwind CSS', status: !!window.tailwind || getComputedStyle(document.body).display !== undefined },
+            { name: 'Font Awesome', status: document.querySelector('link[href*="font-awesome"]') !== null },
+            { name: 'Custom CSS variables', status: getComputedStyle(document.body).getPropertyValue('--primary-green') !== '' },
+            { name: 'Gradient backgrounds', status: getComputedStyle(document.body).backgroundImage.includes('gradient') }
+        ];
+        checkStatus('css-status', cssChecks);
+        
+        // Check camera
+        navigator.mediaDevices?.getUserMedia({ video: true })
+            .then(() => {
+                const cameraChecks = [
+                    { name: 'Camera API support', status: true },
+                    { name: 'Camera permission', status: true },
+                    { name: 'getUserMedia available', status: true }
+                ];
+                checkStatus('camera-status', cameraChecks);
+            })
+            .catch(() => {
+                const cameraChecks = [
+                    { name: 'Camera API support', status: !!navigator.mediaDevices },
+                    { name: 'Camera permission', status: false },
+                    { name: 'getUserMedia available', status: !!navigator.mediaDevices?.getUserMedia }
+                ];
+                checkStatus('camera-status', cameraChecks);
+            });
+        
+        // Check PWA
+        const pwaChecks = [
+            { name: 'Service Worker support', status: 'serviceWorker' in navigator },
+            { name: 'Manifest file', status: document.querySelector('link[rel="manifest"]') !== null },
+            { name: 'HTTPS or localhost', status: location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1' },
+            { name: 'installPrompt support', status: 'BeforeInstallPromptEvent' in window || 'onbeforeinstallprompt' in window }
+        ];
+        checkStatus('pwa-status', pwaChecks);
+        
+        console.log('Status check completed');
+    </script>
+</body>
+</html>

@@ -15,6 +15,7 @@ const countrySelect = document.getElementById('country-select');
 const historyModal = document.getElementById('history-modal');
 const historyButton = document.getElementById('history-button');
 const detailsHr = document.getElementById('details-hr');
+const retakeButton = document.getElementById('retake-button');
   
   // --- App State ---
 let userCountry = 'us';
@@ -33,6 +34,20 @@ let lastImageDataUrl = null;
   function hideSpinner() {
       outputDiv.innerHTML = '';
       scanButton.disabled = false; // Re-enable button after attempt
+  }
+
+  function showCameraLoading() {
+      const cameraLoading = document.getElementById('camera-loading');
+      if (cameraLoading) {
+          cameraLoading.style.display = 'flex';
+      }
+  }
+
+  function hideCameraLoading() {
+      const cameraLoading = document.getElementById('camera-loading');
+      if (cameraLoading) {
+          cameraLoading.style.display = 'none';
+      }
   }
   
   function displayError(messageKey, detail = '') {
@@ -405,7 +420,24 @@ let lastImageDataUrl = null;
       const borderColorClass = binBorderColorClasses[binColorClassKey] || binBorderColorClasses['default-general-waste'];
   
       // --- Update Header ---
-      binHeader.className = `bin-header flex flex-col items-center justify-center p-6 text-white text-center min-h-[180px] ${bgColorClass}`;
+      // Add visual feedback for bin selection
+      binHeader.className = `bin-header flex flex-col items-center justify-center p-6 text-white text-center min-h-[180px] ${bgColorClass} transition-all duration-500 ease-in-out transform`;
+      binHeader.style.transform = 'scale(1)';
+      binHeader.style.opacity = '1';
+      
+      // Force reflow
+      binHeader.offsetHeight;
+      
+      // Add animation
+      binHeader.style.transform = 'scale(1.05)';
+      binHeader.style.opacity = '0.8';
+      
+      // Reset to normal
+      setTimeout(() => {
+          binHeader.style.transform = 'scale(1)';
+          binHeader.style.opacity = '1';
+      }, 300);
+      
       binHeader.innerHTML = `
           <i class="fas ${binIconClass} fa-3x mb-3"></i>
           <span class="block text-2xl font-bold leading-tight bin-name-region">${regionalBinName}</span>
@@ -520,7 +552,25 @@ function displayFailureResult(failureName, failureReasoning) {
     const bgColorClass = binColorClasses['error-bin'];
     const borderColorClass = binBorderColorClasses['error-bin'];
 
-    binHeader.className = `bin-header flex flex-col items-center justify-center p-6 text-white text-center min-h-[180px] ${bgColorClass}`;
+    // --- Update Header ---
+    // Add visual feedback for bin selection
+    binHeader.className = `bin-header flex flex-col items-center justify-center p-6 text-white text-center min-h-[180px] ${bgColorClass} transition-all duration-500 ease-in-out transform`;
+    binHeader.style.transform = 'scale(1)';
+    binHeader.style.opacity = '1';
+    
+    // Force reflow
+    binHeader.offsetHeight;
+    
+    // Add animation
+    binHeader.style.transform = 'scale(1.05)';
+    binHeader.style.opacity = '0.8';
+    
+    // Reset to normal
+    setTimeout(() => {
+        binHeader.style.transform = 'scale(1)';
+        binHeader.style.opacity = '1';
+    }, 300);
+    
     binHeader.innerHTML = `
         <i class="fas fa-question-circle fa-3x mb-3"></i>
         <span class="block text-2xl font-bold leading-tight bin-name-region">${failureName}</span>
@@ -550,7 +600,12 @@ function handleFeedback(isCorrect) {
     if (feedbackContainer) {
         feedbackContainer.innerHTML = `<small class="text-gray-600">Thank you for your feedback!</small>`;
     }
-    // TODO: Send feedback data (maybe including lastAIResponse and user selection)
+    
+    // Track feedback
+    if (window.easyBinAnalytics && lastResultItems && lastResultItems.length > 0) {
+        const item = lastResultItems[0];
+        window.easyBinAnalytics.trackFeedback(isCorrect, item.itemName, item.primaryBin);
+    }
 }
 
 // --- History Functions ---
@@ -721,6 +776,225 @@ function clearAllHistory() {
     }
 }
 
+// Function to handle retake photo action
+function handleRetake() {
+    // Hide the result card
+    resultCard.classList.add('hidden');
+    
+    // Clear the output div
+    outputDiv.innerHTML = '';
+    
+    // Reset the last result items
+    lastResultItems = null;
+    lastAIResponse = null;
+    lastImageDataUrl = null;
+    
+    // Re-enable the scan button
+    scanButton.disabled = false;
+    
+    // Scroll back to the camera view
+    const cameraContainer = document.getElementById('camera-container');
+    if (cameraContainer) {
+        cameraContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    console.log("Retake photo - UI reset complete");
+}
+
+// Function to handle share results
+function handleShare() {
+    // Check if Web Share API is supported
+    if (navigator.share) {
+        // Get the current result data
+        const item = lastResultItems?.[0];
+        if (!item) return;
+        
+        // Create share data
+        const shareData = {
+            title: 'EasyBin Waste Sorting Result',
+            text: `I identified a ${item.itemName} as ${item.primaryBin} waste with ${Math.round(item.primaryConfidence * 100)}% confidence.`,
+            url: window.location.href
+        };
+        
+        // Attempt to share
+        navigator.share(shareData)
+            .then(() => console.log('Share successful'))
+            .catch((error) => {
+                console.error('Error sharing:', error);
+                // Fallback to clipboard copy if share fails
+                fallbackToClipboard(shareData);
+            });
+    } else {
+        // Web Share API not supported, fallback to clipboard
+        const item = lastResultItems?.[0];
+        if (!item) return;
+        
+        const fallbackText = `I identified a ${item.itemName} as ${item.primaryBin} waste with ${Math.round(item.primaryConfidence * 100)}% confidence. Check out EasyBin for smart waste sorting!`;
+        fallbackToClipboard({ text: fallbackText });
+    }
+}
+
+// Fallback function to copy text to clipboard
+function fallbackToClipboard(data) {
+    const text = data.text || data.title + ' ' + data.url;
+    
+    // Try to use the Clipboard API
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(text)
+            .then(() => {
+                console.log('Text copied to clipboard');
+                // Show user feedback
+                const shareButton = document.getElementById('share-button');
+                const originalText = shareButton.innerHTML;
+                shareButton.innerHTML = '<i class="fas fa-check mr-2" aria-hidden="true"></i><span>Shared!</span>';
+                setTimeout(() => {
+                    shareButton.innerHTML = originalText;
+                }, 2000);
+            })
+            .catch(err => {
+                console.error('Failed to copy text: ', err);
+                alert('Could not share or copy results. Please try again.');
+            });
+    } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = text;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        try {
+            document.execCommand('copy');
+            console.log('Text copied to clipboard');
+            // Show user feedback
+            const shareButton = document.getElementById('share-button');
+            const originalText = shareButton.innerHTML;
+            shareButton.innerHTML = '<i class="fas fa-check mr-2" aria-hidden="true"></i><span>Shared!</span>';
+            setTimeout(() => {
+                shareButton.innerHTML = originalText;
+            }, 2000);
+        } catch (err) {
+            console.error('Fallback: Oops, unable to copy', err);
+            alert('Could not share or copy results. Please try again.');
+        }
+        document.body.removeChild(textArea);
+    }
+}
+
+// Function to save results to photos
+function handleSaveToPhotos() {
+    // Create a canvas to render the result
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    
+    // Set canvas dimensions (standard phone screen ratio)
+    canvas.width = 1080;
+    canvas.height = 1920;
+    
+    // Set background
+    context.fillStyle = '#f8fafc';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Set font styles
+    context.fillStyle = '#1e293b';
+    
+    // Add EasyBin logo/text
+    context.font = 'bold 48px sans-serif';
+    context.fillText('EasyBin', 60, 120);
+    
+    context.font = '24px sans-serif';
+    context.fillStyle = '#64748b';
+    context.fillText('Smart Waste Sorting', 60, 160);
+    
+    // Add separator
+    context.strokeStyle = '#e2e8f0';
+    context.lineWidth = 2;
+    context.beginPath();
+    context.moveTo(60, 200);
+    context.lineTo(canvas.width - 60, 200);
+    context.stroke();
+    
+    // Get the current result data
+    const item = lastResultItems?.[0];
+    if (!item) {
+        alert('No results to save. Please scan an item first.');
+        return;
+    }
+    
+    // Add item name
+    context.fillStyle = '#1e293b';
+    context.font = 'bold 36px sans-serif';
+    context.fillText(`Item: ${item.itemName}`, 60, 280);
+    
+    // Add bin information
+    context.font = '32px sans-serif';
+    const binDetails = generateBinDetails(item.primaryBin, item.material, userCountry);
+    context.fillText(`Bin: ${binDetails.uiBinName}`, 60, 340);
+    
+    // Add confidence
+    context.fillText(`Confidence: ${Math.round(item.primaryConfidence * 100)}%`, 60, 400);
+    
+    // Add material if available
+    if (item.material) {
+        context.fillText(`Material: ${item.material}`, 60, 460);
+    }
+    
+    // Add reasoning
+    context.font = '24px sans-serif';
+    context.fillStyle = '#64748b';
+    
+    // Wrap reasoning text
+    const reasoning = item.reasoning || 'No reasoning available';
+    const words = reasoning.split(' ');
+    let line = '';
+    let y = 540;
+    for (let n = 0; n < words.length; n++) {
+        const testLine = line + words[n] + ' ';
+        const metrics = context.measureText(testLine);
+        const testWidth = metrics.width;
+        if (testWidth > canvas.width - 120 && n > 0) {
+            context.fillText(line, 60, y);
+            line = words[n] + ' ';
+            y += 30;
+        } else {
+            line = testLine;
+        }
+    }
+    context.fillText(line, 60, y);
+    
+    // Add timestamp
+    context.fillStyle = '#64748b';
+    context.font = '20px sans-serif';
+    const now = new Date();
+    context.fillText(`Saved on: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`, 60, canvas.height - 120);
+    
+    // Add watermark
+    context.fillStyle = '#cbd5e1';
+    context.font = '18px sans-serif';
+    context.fillText('EasyBin - Smart Waste Sorting', 60, canvas.height - 60);
+    
+    // Convert canvas to data URL and trigger download
+    canvas.toBlob(function(blob) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `easybin-result-${now.toISOString().slice(0, 10)}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Show user feedback
+        const saveButton = document.getElementById('save-button');
+        const originalText = saveButton.innerHTML;
+        saveButton.innerHTML = '<i class="fas fa-check mr-2" aria-hidden="true"></i><span>Saved!</span>';
+        setTimeout(() => {
+            saveButton.innerHTML = originalText;
+        }, 2000);
+    }, 'image/png');
+}
+
 // Function to estimate storage usage
 function getStorageEstimate() {
     if (navigator.storage && navigator.storage.estimate) {
@@ -807,6 +1081,113 @@ function displayHistory() {
 // --- Event Listeners ---
 historyButton.addEventListener('click', () => toggleHistoryModal(true));
 
+retakeButton.addEventListener('click', handleRetake);
+
+// Share button event listener
+const shareButton = document.getElementById('share-button');
+if (shareButton) {
+    shareButton.addEventListener('click', handleShare);
+}
+
+// Save button event listener
+const saveButton = document.getElementById('save-button');
+if (saveButton) {
+    saveButton.addEventListener('click', handleSaveToPhotos);
+}
+
+// Quick tips functionality
+const tipsButton = document.getElementById('tips-button');
+const tipsOverlay = document.getElementById('quick-tips-overlay');
+const closeTips = document.getElementById('close-tips');
+const nextTip = document.getElementById('next-tip');
+const tipsContent = document.getElementById('tips-content');
+
+// Array of tips (can be localized)
+const tips = [
+    {
+        icon: '📸',
+        title: 'Better Photos',
+        text: 'Ensure good lighting and focus on a single item for best results.'
+    },
+    {
+        icon: '♻️',
+        title: 'Recycling Rules',
+        text: 'Clean containers have higher recycling rates. Rinse food residue when possible.'
+    },
+    {
+        icon: '🌍',
+        title: 'Regional Differences',
+        text: 'Recycling rules vary by location. Check your local guidelines for specifics.'
+    },
+    {
+        icon: '🔍',
+        title: 'Multiple Items',
+        text: 'For multiple items, scan them one at a time for accurate sorting instructions.'
+    },
+    {
+        icon: '📱',
+        title: 'Offline Use',
+        text: 'EasyBin works offline! Install as a PWA for full functionality without internet.'
+    }
+];
+
+let currentTipIndex = 0;
+
+// Function to show tips overlay
+function showTips() {
+    if (tipsOverlay) {
+        // Update tips content
+        updateTipContent();
+        // Show overlay
+        tipsOverlay.classList.remove('hidden');
+        tipsOverlay.classList.add('flex');
+    }
+}
+
+// Function to update tip content
+function updateTipContent() {
+    if (tipsContent) {
+        const tip = tips[currentTipIndex];
+        tipsContent.innerHTML = `
+            <div class="tip-item p-4 bg-gray-50 rounded-lg">
+                <h4 class="font-medium text-gray-900 mb-2">${tip.icon} ${tip.title}</h4>
+                <p class="text-gray-600 text-sm">${tip.text}</p>
+            </div>
+        `;
+    }
+}
+
+// Event listeners for tips
+if (tipsButton) {
+    tipsButton.addEventListener('click', showTips);
+}
+
+if (closeTips) {
+    closeTips.addEventListener('click', () => {
+        if (tipsOverlay) {
+            tipsOverlay.classList.add('hidden');
+            tipsOverlay.classList.remove('flex');
+        }
+    });
+}
+
+if (nextTip) {
+    nextTip.addEventListener('click', () => {
+        currentTipIndex = (currentTipIndex + 1) % tips.length;
+        updateTipContent();
+    });
+}
+
+// Close tips when clicking outside
+if (tipsOverlay) {
+    tipsOverlay.addEventListener('click', function(event) {
+        if (event.target === tipsOverlay) {
+            tipsOverlay.classList.add('hidden');
+            tipsOverlay.classList.remove('flex');
+        }
+    });
+}
+
 languageSelect.addEventListener('change', (event) => {
     currentLanguage = event.target.value;
     updateUIText(currentLanguage);
@@ -834,6 +1215,12 @@ historyModal.addEventListener('click', function(event) {
 // --- Scan Button Action ---
 scanButton.onclick = function() {
     showSpinner();
+    
+    // Track scan attempt
+    if (window.easyBinAnalytics) {
+        window.easyBinAnalytics.trackScanAttempt(userCountry, currentLanguage);
+    }
+    
     try {
         // Snapshot visual feedback
         const cameraContainer = document.getElementById('camera-container');
@@ -935,6 +1322,22 @@ Example for a successful identification:
 
                     lastAIResponse = aiResult;
                     displayAIResults(aiResult.items);
+                    
+                    // Track successful scan
+                    if (window.easyBinAnalytics && aiResult.items && aiResult.items.length > 0) {
+                        const item = aiResult.items[0];
+                        if (item.primaryBin !== 'error') {
+                            window.easyBinAnalytics.trackScanSuccess(
+                                item.itemName, 
+                                item.primaryConfidence, 
+                                item.primaryBin, 
+                                userCountry, 
+                                currentLanguage
+                            );
+                        } else {
+                            window.easyBinAnalytics.trackScanFailure(item.reasoning || 'AI identification failed', userCountry, currentLanguage);
+                        }
+                    }
 
                 } catch (parseError) {
                     console.error('AI Processing/Parsing Error:', parseError);
@@ -1042,6 +1445,8 @@ async function initApp() {
 
     // 4. Initialize Camera
     if (navigator.mediaDevices?.getUserMedia) {
+        showCameraLoading();
+        
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
@@ -1063,24 +1468,93 @@ async function initApp() {
                 canvas.height = canvas.width / aspectRatio; // Adjust canvas height to match video aspect ratio
                 console.log(`Camera initialized (${settings.width}x${settings.height}), canvas aspect ratio adjusted`);
                 scanButton.disabled = false; // Enable scan button
+                
+                // Hide loading state once camera is ready
+                hideCameraLoading();
             };
         } catch (error) {
             console.error("Camera access error:", error);
-            let errorKey = "errorCameraInit";
-            if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-                errorKey = "errorCameraNotFound";
-            } else if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-                errorKey = "errorCameraDenied";
+            
+            // Hide loading state
+            hideCameraLoading();
+            
+            if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
+                // Show permission denied help screen
+                const permissionDenied = document.getElementById('camera-permission-denied');
+                if (permissionDenied) {
+                    permissionDenied.classList.remove('hidden');
+                }
+            } else {
+                let errorKey = "errorCameraInit";
+                if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
+                    errorKey = "errorCameraNotFound";
+                }
+                displayError(errorKey, `(${error.name})`);
             }
-            displayError(errorKey, `(${error.name})`);
         }
     } else {
         displayError("errorCameraInit", "getUserMedia() is not supported.");
+        
+        // Hide loading state on error
+        hideCameraLoading();
     }
 }
 
+// Add retry camera functionality
+document.getElementById('retry-camera')?.addEventListener('click', function() {
+    const permissionDenied = document.getElementById('camera-permission-denied');
+    if (permissionDenied) {
+        permissionDenied.classList.add('hidden');
+    }
+    
+    // Re-initialize camera
+    initApp();
+});
+
+// Add retry camera functionality
+document.getElementById('retry-camera')?.addEventListener('click', function() {
+    const permissionDenied = document.getElementById('camera-permission-denied');
+    if (permissionDenied) {
+        permissionDenied.classList.add('hidden');
+    }
+    
+    // Re-initialize camera
+    initApp();
+});
+
 // --- Start the app ---
 initApp();
+
+// Initialize analytics
+if (window.easyBinAnalytics) {
+    window.easyBinAnalytics.trackAppStart();
+}
+
+// Add network status monitoring
+window.addEventListener('online', () => {
+    const networkStatus = document.getElementById('network-status');
+    if (networkStatus) {
+        networkStatus.classList.remove('hidden');
+        networkStatus.innerHTML = '<i class="fas fa-wifi text-green-300"></i> <span>Online</span>';
+        networkStatus.classList.add('online');
+        networkStatus.classList.remove('offline');
+    }
+    console.log('Application came online');
+});
+
+window.addEventListener('offline', () => {
+    const networkStatus = document.getElementById('network-status');
+    if (networkStatus) {
+        networkStatus.classList.remove('hidden');
+        networkStatus.innerHTML = '<i class="fas fa-wifi-slash text-red-300"></i> <span>Offline</span>';
+        networkStatus.classList.add('offline');
+        networkStatus.classList.remove('online');
+    }
+    console.log('Application went offline');
+    if (window.easyBinAnalytics) {
+        window.easyBinAnalytics.trackOfflineUsage();
+    }
+});
 
 // Try to detect potential storage issues early
 window.addEventListener('load', function() {

@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Icon Generator</title>
+    <style>
+        canvas { border: 1px solid #ccc; margin: 10px; }
+        .icon-preview { display: inline-block; margin: 10px; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>EasyBin PWA Icon Generator</h1>
+    <div id="icons"></div>
+    
+    <script>
+        function createIcon(size) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Background
+            ctx.fillStyle = '#10b981'; // Theme color
+            ctx.fillRect(0, 0, size, size);
+            
+            // Bin shape
+            const binWidth = size * 0.6;
+            const binHeight = size * 0.7;
+            const binX = (size - binWidth) / 2;
+            const binY = (size - binHeight) / 2 + size * 0.1;
+            
+            // Bin body
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(binX, binY, binWidth, binHeight);
+            
+            // Bin lid
+            const lidHeight = size * 0.08;
+            ctx.fillRect(binX - size * 0.05, binY - lidHeight, binWidth + size * 0.1, lidHeight);
+            
+            // Handle
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = size * 0.02;
+            ctx.beginPath();
+            ctx.arc(size / 2, binY - lidHeight / 2, size * 0.05, Math.PI, 0, false);
+            ctx.stroke();
+            
+            // Recycle symbol
+            ctx.fillStyle = '#10b981';
+            ctx.font = `${size * 0.15}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.fillText('♻', size / 2, binY + binHeight * 0.6);
+            
+            return canvas;
+        }
+        
+        // Generate icons
+        [192, 512].forEach(size => {
+            const canvas = createIcon(size);
+            const div = document.createElement('div');
+            div.className = 'icon-preview';
+            div.innerHTML = `<h3>${size}x${size}</h3>`;
+            div.appendChild(canvas);
+            
+            // Download link
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL('image/png');
+            link.download = `icon-${size}.png`;
+            link.textContent = `Download ${size}x${size}`;
+            link.style.display = 'block';
+            div.appendChild(link);
+            
+            document.getElementById('icons').appendChild(div);
+        });
+    </script>
+</body>
+</html>
