@@ -27,13 +27,35 @@ let lastImageDataUrl = null;
   // --- UI Update Functions ---
   function showSpinner() {
       outputDiv.innerHTML = '<div class="spinner"></div>';
-      resultCard.classList.add('hidden');
+      // Hide welcome state and show result content when processing
+      const welcomeState = document.getElementById('welcome-state');
+      const resultContent = document.getElementById('result-content');
+      if (welcomeState) welcomeState.classList.add('hidden');
+      if (resultContent) resultContent.classList.remove('hidden');
+      resultCard.classList.remove('hidden'); // Ensure card is visible
       scanButton.disabled = true;
+      updateAppStatus('Analyzing image...');
+  }
+  
+  function updateAppStatus(message, type = 'info') {
+      const statusElement = document.getElementById('app-status');
+      if (statusElement) {
+          let icon = 'fas fa-leaf text-green-500';
+          if (type === 'loading') icon = 'fas fa-spinner fa-spin text-blue-500';
+          else if (type === 'error') icon = 'fas fa-exclamation-triangle text-red-500';
+          else if (type === 'success') icon = 'fas fa-check-circle text-green-500';
+          
+          statusElement.innerHTML = `<i class="${icon} mr-1" aria-hidden="true"></i>${message}`;
+      }
   }
   
   function hideSpinner() {
-      outputDiv.innerHTML = '';
+      outputDiv.innerHTML = `<div id="app-status" class="text-center text-sm text-gray-500 py-2">
+                              <i class="fas fa-leaf text-green-500 mr-1" aria-hidden="true"></i>
+                              Ready to scan
+                            </div>`;
       scanButton.disabled = false; // Re-enable button after attempt
+      updateAppStatus('Ready to scan', 'info');
   }
 
   function showCameraLoading() {
@@ -57,9 +79,19 @@ let lastImageDataUrl = null;
       outputDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
                               <strong class="font-bold">Error:</strong>
                               <span class="block sm:inline">${message} ${detail}</span>
+                            </div>
+                            <div id="app-status" class="text-center text-sm text-gray-500 py-2 mt-2">
+                              <i class="fas fa-exclamation-triangle text-red-500 mr-1" aria-hidden="true"></i>
+                              Error occurred
                             </div>`;
-      resultCard.classList.add('hidden'); // Ensure card is hidden on generic error
+      // Don't hide result card on error - keep welcome state visible
+      const welcomeState = document.getElementById('welcome-state');
+      const resultContent = document.getElementById('result-content');
+      if (welcomeState) welcomeState.classList.remove('hidden');
+      if (resultContent) resultContent.classList.add('hidden');
+      resultCard.classList.remove('hidden'); // Keep card visible to show welcome state
       scanButton.disabled = false;
+      updateAppStatus('Error occurred', 'error');
   }
   
   // Helper to generate bin details
@@ -347,9 +379,9 @@ let lastImageDataUrl = null;
       document.getElementById('history-button-text').textContent = t.historyButtonText || 'Scan History';
       // Update modal title and empty message if modal elements exist
       const modalTitle = document.getElementById('history-modal-title');
-      const emptyMsg = document.getElementById('history-empty-message');
+      const emptyState = document.getElementById('history-empty-state');
       if(modalTitle) modalTitle.textContent = t.historyModalTitle || 'Scan History';
-      if(emptyMsg) emptyMsg.textContent = t.historyEmptyMessage || 'No scans recorded yet.';
+      // Note: Empty state text is hardcoded in HTML for better UX
   
       // Update country names in dropdown to current language if available
       // This is a bit more complex as it requires mapping values to translated text
@@ -529,7 +561,12 @@ let lastImageDataUrl = null;
     `;
     countryNote.insertAdjacentElement('beforebegin', feedbackEl); // Insert before the hidden country note
 
-    // --- Show Card and Scroll ---
+    // --- Show Results Content ---
+    const welcomeState = document.getElementById('welcome-state');
+    const resultContent = document.getElementById('result-content');
+    if (welcomeState) welcomeState.classList.add('hidden');
+    if (resultContent) resultContent.classList.remove('hidden');
+    
     resultCard.classList.remove('hidden');
     resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
@@ -588,6 +625,12 @@ function displayFailureResult(failureName, failureReasoning) {
 
     itemDescription.textContent = failureReasoning;
     itemDescription.style.display = 'block';
+
+    // --- Show Results Content ---
+    const welcomeState = document.getElementById('welcome-state');
+    const resultContent = document.getElementById('result-content');
+    if (welcomeState) welcomeState.classList.add('hidden');
+    if (resultContent) resultContent.classList.remove('hidden');
 
     resultCard.classList.remove('hidden');
     resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -778,8 +821,14 @@ function clearAllHistory() {
 
 // Function to handle retake photo action
 function handleRetake() {
-    // Hide the result card
-    resultCard.classList.add('hidden');
+    // Show welcome state and hide result content
+    const welcomeState = document.getElementById('welcome-state');
+    const resultContent = document.getElementById('result-content');
+    if (welcomeState) welcomeState.classList.remove('hidden');
+    if (resultContent) resultContent.classList.add('hidden');
+    
+    // Keep result card visible to show welcome state
+    resultCard.classList.remove('hidden');
     
     // Clear the output div
     outputDiv.innerHTML = '';
@@ -1023,20 +1072,17 @@ function toggleHistoryModal(show) {
 function displayHistory() {
     const history = loadHistory();
     const modalBody = document.getElementById('history-modal-body');
-    const emptyMsgElement = document.getElementById('history-empty-message'); // Get ref to empty msg P tag
+    const emptyStateElement = document.getElementById('history-empty-state'); // Get ref to empty state div
 
     // Clear previous items *except* the empty message structure
     modalBody.querySelectorAll('.history-item').forEach(item => item.remove());
 
-    // Update empty message text based on current language
-    emptyMsgElement.textContent = translations[currentLanguage].historyEmptyMessage || 'No scans recorded yet.';
-
     if (history.length === 0) {
-        emptyMsgElement.classList.remove('hidden'); // Show message
+        if (emptyStateElement) emptyStateElement.classList.remove('hidden'); // Show message
         return;
     }
 
-    emptyMsgElement.classList.add('hidden'); // Hide message
+    if (emptyStateElement) emptyStateElement.classList.add('hidden'); // Hide message
 
     history.forEach(entry => {
         // Generate bin details based on the STORED entry's region and bin type
@@ -1160,6 +1206,12 @@ function updateTipContent() {
 // Event listeners for tips
 if (tipsButton) {
     tipsButton.addEventListener('click', showTips);
+}
+
+// Event listener for view all history button
+const viewAllHistoryButton = document.getElementById('view-all-history');
+if (viewAllHistoryButton) {
+    viewAllHistoryButton.addEventListener('click', () => toggleHistoryModal(true));
 }
 
 if (closeTips) {
@@ -1419,6 +1471,16 @@ async function detectUserCountry() {
 async function initApp() {
     console.log("Initializing app...");
 
+    // 0. Ensure welcome state is visible initially and set initial status
+    const welcomeState = document.getElementById('welcome-state');
+    const resultContent = document.getElementById('result-content');
+    if (welcomeState) welcomeState.classList.remove('hidden');
+    if (resultContent) resultContent.classList.add('hidden');
+    if (resultCard) resultCard.classList.remove('hidden');
+    
+    // Initialize app status
+    updateAppStatus('Initializing...', 'loading');
+
     // 1. Detect country and set dropdown
     try {
         const detectedCountry = await detectUserCountry();
@@ -1471,6 +1533,9 @@ async function initApp() {
                 
                 // Hide loading state once camera is ready
                 hideCameraLoading();
+                
+                // Set ready status
+                updateAppStatus('Ready to scan', 'success');
             };
         } catch (error) {
             console.error("Camera access error:", error);

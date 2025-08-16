@@ -18,7 +18,7 @@ test.describe('PWA Installation Tests', () => {
     await expect(manifestLink).toHaveAttribute('href', 'manifest.json');
     
     // Verify manifest loads successfully
-    const response = await page.request.get('http://localhost:50634/manifest.json');
+    const response = await page.request.get('http://localhost:5050/manifest.json');
     expect(response.status()).toBe(200);
     
     const manifest = await response.json();
@@ -68,21 +68,21 @@ test.describe('PWA Installation Tests', () => {
 
   test('PWA icons are accessible', async ({ page }) => {
     // Test 192x192 icon
-    const icon192Response = await page.request.get('http://localhost:50634/icons/icon-192x192.png');
+    const icon192Response = await page.request.get('http://localhost:5050/icons/icon-192x192.png');
     expect(icon192Response.status()).toBe(200);
     
     // Test 512x512 icon
-    const icon512Response = await page.request.get('http://localhost:50634/icons/icon-512x512.png');
+    const icon512Response = await page.request.get('http://localhost:5050/icons/icon-512x512.png');
     expect(icon512Response.status()).toBe(200);
     
     // Test SVG icon
-    const iconSvgResponse = await page.request.get('http://localhost:50634/icons/icon.svg');
+    const iconSvgResponse = await page.request.get('http://localhost:5050/icons/icon.svg');
     expect(iconSvgResponse.status()).toBe(200);
   });
 
   test('offline page is available', async ({ page }) => {
     // Test offline page loads
-    const offlineResponse = await page.request.get('http://localhost:50634/offline.html');
+    const offlineResponse = await page.request.get('http://localhost:5050/offline.html');
     expect(offlineResponse.status()).toBe(200);
   });
 
@@ -135,7 +135,7 @@ test.describe('PWA Installation Tests', () => {
     await expect(themeColor).toHaveAttribute('content', '#10b981');
     
     // Check if manifest theme colors match
-    const response = await page.request.get('http://localhost:50634/manifest.json');
+    const response = await page.request.get('http://localhost:5050/manifest.json');
     const manifest = await response.json();
     expect(manifest.theme_color).toBe('#10b981');
     expect(manifest.background_color).toBe('#f0fdf4');
@@ -143,7 +143,7 @@ test.describe('PWA Installation Tests', () => {
 
   test('PWA display mode is standalone', async ({ page }) => {
     // Verify manifest display mode
-    const response = await page.request.get('http://localhost:50634/manifest.json');
+    const response = await page.request.get('http://localhost:5050/manifest.json');
     const manifest = await response.json();
     expect(manifest.display).toBe('standalone');
   });
