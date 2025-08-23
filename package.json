@@ -9,8 +9,8 @@
     "test:e2e": "playwright test",
     "test:coverage": "jest --coverage --testPathIgnorePatterns='.*\\.spec\\.js$'",
     "test:all": "npm run test && npm run test:e2e",
-    "serve": "npx serve -s . -l 3000",
-    "dev": "npx live-server --port=3000"
+    "serve": "npx serve -s . -p 5050",
+    "dev": "npx live-server --port=5050"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.1",

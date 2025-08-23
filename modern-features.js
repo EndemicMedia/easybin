@@ -322,6 +322,42 @@ class EasyBinModernFeatures {
     }
 
     // =======================================================================
+    // BATCH SCANNING SYSTEM
+    // =======================================================================
+    initBatchScanning() {
+        // Add batch scanning UI elements
+        const batchContainer = document.createElement('div');
+        batchContainer.id = 'batch-scanning';
+        batchContainer.className = 'hidden mt-4 p-4 bg-purple-50 rounded-lg border border-purple-200';
+        batchContainer.innerHTML = `
+            <h3 class="text-lg font-semibold text-purple-800 mb-2">
+                <i class="fas fa-layer-group mr-2"></i>Batch Scanning
+            </h3>
+            <div id="batch-items" class="space-y-2 mb-3"></div>
+            <div class="flex space-x-2">
+                <button id="clear-batch" class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600">
+                    Clear Batch
+                </button>
+                <button id="analyze-batch" class="bg-purple-500 text-white px-3 py-1 rounded text-sm hover:bg-purple-600">
+                    Analyze All
+                </button>
+            </div>
+        `;
+        
+        const resultCard = document.getElementById('result-card');
+        if (resultCard) {
+            resultCard.appendChild(batchContainer);
+        }
+
+        // Add event listeners
+        const clearBtn = document.getElementById('clear-batch');
+        const analyzeBtn = document.getElementById('analyze-batch');
+        
+        if (clearBtn) clearBtn.addEventListener('click', () => this.clearBatch());
+        if (analyzeBtn) analyzeBtn.addEventListener('click', () => this.analyzeBatch());
+    }
+
+    // =======================================================================
     // SMART SUGGESTIONS SYSTEM
     // =======================================================================
     initSmartSuggestions() {

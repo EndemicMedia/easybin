@@ -10,32 +10,72 @@ module.exports = defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: 'http://localhost:5050',
     trace: 'on-first-retry',
   },
 
   projects: [
+    // Desktop Browsers - Core Testing
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      use: { 
+        ...devices['Desktop Chrome'],
+        permissions: ['camera']
+      },
     },
     {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
+      name: 'firefox', 
+      use: { 
+        ...devices['Desktop Firefox']
+        // Note: Firefox doesn't support camera permissions in Playwright testing
+      },
     },
     {
       name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
+      use: { 
+        ...devices['Desktop Safari']
+        // Note: Safari doesn't support camera permissions in Playwright testing
+      },
+    },
+
+    // Mobile Browsers - PWA Testing
+    {
+      name: 'mobile-chrome',
+      use: { 
+        ...devices['Pixel 5']
+        // Note: Mobile Chrome doesn't support camera permissions in Playwright testing
+      },
     },
     {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
+      name: 'mobile-safari',
+      use: { 
+        ...devices['iPhone 12']
+        // Note: Mobile Safari doesn't support camera permissions in Playwright testing
+      },
+    },
+
+    // Tablet - Responsive Testing  
+    {
+      name: 'tablet',
+      use: { 
+        ...devices['iPad Pro']
+        // Note: iPad doesn't support camera permissions in Playwright testing
+      },
+    },
+
+    // Edge Cases - Different Screen Sizes
+    {
+      name: 'mobile-small',
+      use: { 
+        ...devices['iPhone SE']
+        // Note: iPhone SE doesn't support camera permissions in Playwright testing
+      },
     },
   ],
 
   webServer: {
-    command: 'npx serve -s . -p 3000',
-    port: 3000,
+    command: 'npx serve -s . -p 5050',
+    port: 5050,
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
   },

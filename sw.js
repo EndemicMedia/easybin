@@ -12,13 +12,12 @@ const STATIC_ASSETS = [
   '/binStyles.js',
   '/analytics.js',
   '/error-monitor.js',
+  '/security.js',
+  '/modern-features.js',
   '/manifest.json',
   '/offline.html',
   '/icons/icon-192.png',
-  '/icons/icon-512.png',
-  'https://cdn.tailwindcss.com?plugins=forms',
-  'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
-  'https://js.puter.com/v2/'
+  '/icons/icon-512.png'
 ];
 
 // Install event - cache static assets
