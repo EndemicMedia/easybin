@@ -22,7 +22,6 @@ class EasyBinModernFeatures {
         this.initGamification();
         this.loadStats();
         this.initAdvancedCamera();
-        this.initNotificationSystem();
     }
 
     // =======================================================================

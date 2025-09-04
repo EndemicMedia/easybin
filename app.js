@@ -16,538 +16,540 @@ const historyModal = document.getElementById('history-modal');
 const historyButton = document.getElementById('history-button');
 const detailsHr = document.getElementById('details-hr');
 const retakeButton = document.getElementById('retake-button');
-  
-  // --- App State ---
+const openCameraButton = document.getElementById('open-camera-button');
+const openCameraContainer = document.getElementById('open-camera-container');
+
+// --- App State ---
 let userCountry = 'us';
 let currentLanguage = 'en';
 let lastAIResponse = null;
 let lastResultItems = null;
 let lastImageDataUrl = null;
-  
-  // --- UI Update Functions ---
-  function showSpinner() {
-      outputDiv.innerHTML = '<div class="spinner"></div>';
-      // Hide welcome state and show result content when processing
-      const welcomeState = document.getElementById('welcome-state');
-      const resultContent = document.getElementById('result-content');
-      if (welcomeState) welcomeState.classList.add('hidden');
-      if (resultContent) resultContent.classList.remove('hidden');
-      resultCard.classList.remove('hidden'); // Ensure card is visible
-      scanButton.disabled = true;
-      updateAppStatus('Analyzing image...');
-  }
-  
-  function updateAppStatus(message, type = 'info') {
-      const statusElement = document.getElementById('app-status');
-      if (statusElement) {
-          let icon = 'fas fa-leaf text-green-500';
-          if (type === 'loading') icon = 'fas fa-spinner fa-spin text-blue-500';
-          else if (type === 'error') icon = 'fas fa-exclamation-triangle text-red-500';
-          else if (type === 'success') icon = 'fas fa-check-circle text-green-500';
-          
-          statusElement.innerHTML = `<i class="${icon} mr-1" aria-hidden="true"></i>${message}`;
-      }
-  }
-  
-  function hideSpinner() {
-      outputDiv.innerHTML = `<div id="app-status" class="text-center text-sm text-gray-500 py-2">
-                              <i class="fas fa-leaf text-green-500 mr-1" aria-hidden="true"></i>
-                              Ready to scan
-                            </div>`;
-      scanButton.disabled = false; // Re-enable button after attempt
-      updateAppStatus('Ready to scan', 'info');
-  }
 
-  function showCameraLoading() {
-      const cameraLoading = document.getElementById('camera-loading');
-      if (cameraLoading) {
-          cameraLoading.style.display = 'flex';
-      }
-  }
+// --- UI Update Functions ---
+function showSpinner() {
+    outputDiv.innerHTML = '<div class="spinner"></div>';
+    // Hide welcome state and show result content when processing
+    const welcomeState = document.getElementById('welcome-state');
+    const resultContent = document.getElementById('result-content');
+    if (welcomeState) welcomeState.classList.add('hidden');
+    if (resultContent) resultContent.classList.remove('hidden');
+    resultCard.classList.remove('hidden'); // Ensure card is visible
+    scanButton.disabled = true;
+    updateAppStatus('Analyzing image...');
+}
 
-  function hideCameraLoading() {
-      const cameraLoading = document.getElementById('camera-loading');
-      if (cameraLoading) {
-          cameraLoading.style.display = 'none';
-      }
-  }
-  
-  function displayError(messageKey, detail = '') {
-      // This function displays errors *outside* the result card (e.g., camera failure)
-      const lang = currentLanguage;
-      const message = translations[lang]?.[messageKey] || translations.en[messageKey] || messageKey;
-      outputDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                              <strong class="font-bold">Error:</strong>
-                              <span class="block sm:inline">${message} ${detail}</span>
-                            </div>
-                            <div id="app-status" class="text-center text-sm text-gray-500 py-2 mt-2">
-                              <i class="fas fa-exclamation-triangle text-red-500 mr-1" aria-hidden="true"></i>
-                              Error occurred
-                            </div>`;
-      // Don't hide result card on error - keep welcome state visible
-      const welcomeState = document.getElementById('welcome-state');
-      const resultContent = document.getElementById('result-content');
-      if (welcomeState) welcomeState.classList.remove('hidden');
-      if (resultContent) resultContent.classList.add('hidden');
-      resultCard.classList.remove('hidden'); // Keep card visible to show welcome state
-      scanButton.disabled = false;
-      updateAppStatus('Error occurred', 'error');
-  }
-  
-  // Helper to generate bin details
-  function generateBinDetails(binType, material, country) {
-      // Default values
-      let binColorClassKey = 'default-general-waste';
-      let regionalBinName = 'General Waste'; // Fallback name in English
-      let uiBinName = 'General Waste'; // Fallback name in English
-      let binIconClass = 'fa-trash-alt';
-      let headerMaterialSummary = 'Mixed/Non-Recyclable'; // Fallback name in English
-      let binNameKey = 'binGeneral'; // Key for translation lookup
-      let specificInstructionKey = 'instructionGeneral'; // Key for specific instruction text
-  
-      const t_region_en = translations.en; // Use English base for structure
-      const t_ui = translations[currentLanguage] || translations.en;
-      const t_region_specific = translations[country] || translations.en; // Translations for the *selected region*
-  
-      // Determine Material Summary (in UI language) - Use UI language keys first
-      const materialLower = material ? material.toLowerCase() : '';
-      if (materialLower.includes('paper') || materialLower.includes('cardboard')) {
-          headerMaterialSummary = t_ui.materialPaper || t_region_en.materialPaper;
-      } else if (materialLower.includes('glass')) {
-          headerMaterialSummary = t_ui.materialGlass || t_region_en.materialGlass;
-      } else if (materialLower.includes('plastic') || materialLower.includes('pet')) {
-          headerMaterialSummary = t_ui.materialPlastic || t_region_en.materialPlastic;
-      } else if (materialLower.includes('metal') || materialLower.includes('aluminum') || materialLower.includes('steel')) {
-          headerMaterialSummary = t_ui.materialMetal || t_region_en.materialMetal;
-      } else if (materialLower.includes('food') || materialLower.includes('organic')) {
-          headerMaterialSummary = t_ui.materialOrganic || t_region_en.materialOrganic;
-      } else if (materialLower.includes('hazard') || materialLower.includes('toxic') || binType === 'hazardous') {
-          headerMaterialSummary = t_ui.materialHazardous || t_region_en.materialHazardous;
-      } else if (binType === 'organic') {
-          headerMaterialSummary = t_ui.materialOrganic || t_region_en.materialOrganic;
-      } else if (binType === 'recyclable') {
-          // If recyclable but no specific material, use generic term
-          headerMaterialSummary = t_ui.materialRecyclable || t_region_en.materialRecyclable;
-      } else { // General waste or unspecified
-          headerMaterialSummary = t_ui.materialMixed || t_region_en.materialMixed;
-      }
-  
-      // Set bin class, name, icon, and instruction key based on bin type, material hint, and country
-      if (country === 'br') { // Brazil Specific Logic
-          switch(binType) {
-              case 'recyclable':
-                  if (materialLower.includes('paper') || materialLower.includes('cardboard')) {
-                      binColorClassKey = 'br-recyclable-paper';
-                      binNameKey = 'binNameRecyclingBR_Paper';
-                      binIconClass = 'fa-file-alt'; // Paper icon
-                      specificInstructionKey = 'instructionRecyclingBR_Paper';
-                  } else if (materialLower.includes('plastic') || materialLower.includes('pet')) {
-                      binColorClassKey = 'br-recyclable-plastic';
-                      binNameKey = 'binNameRecyclingBR_Plastic';
-                      binIconClass = 'fa-bottle-water'; // Plastic icon
-                      specificInstructionKey = 'instructionRecyclingBR_Plastic';
-                  } else if (materialLower.includes('glass')) {
-                      binColorClassKey = 'br-recyclable-glass';
-                      binNameKey = 'binNameRecyclingBR_Glass';
-                      binIconClass = 'fa-wine-bottle'; // Glass icon
-                      specificInstructionKey = 'instructionRecyclingBR_Glass';
-                  } else if (materialLower.includes('metal') || materialLower.includes('aluminum') || materialLower.includes('steel')) {
-                      binColorClassKey = 'br-recyclable-metal';
-                      binNameKey = 'binNameRecyclingBR_Metal';
-                      binIconClass = 'fa-gear'; // Using gear as fallback for metal
-                      specificInstructionKey = 'instructionRecyclingBR_Metal';
-                  } else { // Generic recyclable if material unknown/unmatched
-                      binColorClassKey = 'default-recyclable'; // Fallback blue
-                      binNameKey = 'binRecycling'; // Generic key
-                      binIconClass = 'fa-recycle';
-                      specificInstructionKey = 'instructionRecycling'; // Use generic instruction
-                  }
-                  break;
-              case 'organic':
-                  binColorClassKey = 'br-organic';
-                  binNameKey = 'binNameOrganicBR';
-                  binIconClass = 'fa-leaf';
-                  specificInstructionKey = 'instructionOrganicBR';
-                  break;
-              case 'hazardous':
-                  binColorClassKey = 'br-hazardous';
-                  binNameKey = 'binNameHazardousBR';
-                  binIconClass = 'fa-triangle-exclamation';
-                  specificInstructionKey = 'instructionHazardousBR';
-                  break;
-              default: // general-waste
-                  binColorClassKey = 'br-general-waste';
-                  binNameKey = 'binNameGeneralBR';
-                  binIconClass = 'fa-trash-alt';
-                  specificInstructionKey = 'instructionGeneralBR';
-          }
-      } else if (country === 'de') { // German Logic (Existing)
-          switch(binType) {
-              case 'recyclable':
-                  if (materialLower.includes('paper') || materialLower.includes('cardboard')) {
-                      binColorClassKey = 'de-recyclable-paper';
-                      binNameKey = 'binNameRecyclingDE_Blue';
-                      binIconClass = 'fa-file-alt';
-                      specificInstructionKey = 'instructionRecyclingDE_Blue';
-                  } else { // Assume Yellow bin for other recyclables
-                      binColorClassKey = 'de-recyclable-yellow';
-                      binNameKey = 'binNameRecyclingDE_Yellow';
-                      binIconClass = 'fa-recycle';
-                      specificInstructionKey = 'instructionRecyclingDE_Yellow';
-                  }
-                  break;
-              case 'organic':
-                  binColorClassKey = 'de-organic';
-                  binNameKey = 'binNameOrganicDE';
-                  binIconClass = 'fa-leaf';
-                  specificInstructionKey = 'instructionOrganicDE';
-                  break;
-              case 'hazardous':
-                  binColorClassKey = 'de-hazardous';
-                  binNameKey = 'binNameHazardousDE';
-                  binIconClass = 'fa-triangle-exclamation';
-                  specificInstructionKey = 'instructionHazardousDE';
-                  break;
-              default: // general-waste
-                  binColorClassKey = 'de-general-waste';
-                  binNameKey = 'binNameGeneralDE';
-                  binIconClass = 'fa-trash-alt';
-                  specificInstructionKey = 'instructionGeneralDE';
-          }
-      } else if (country === 'it') { // Italian Logic (Existing)
-          switch(binType) {
-              case 'recyclable':
-                  if (materialLower.includes('paper') || materialLower.includes('cardboard')) {
-                      binColorClassKey = 'it-recyclable-paper';
-                      binNameKey = 'binNameRecyclingIT_Blue';
-                      binIconClass = 'fa-file-alt';
-                      specificInstructionKey = 'instructionRecyclingIT_Blue';
-                  } else if (materialLower.includes('glass')) {
-                      binColorClassKey = 'it-recyclable-glass';
-                      binNameKey = 'binNameRecyclingIT_Green';
-                      binIconClass = 'fa-wine-bottle';
-                      specificInstructionKey = 'instructionRecyclingIT_Green';
-                  } else { // Assume Yellow bin for plastic/metal
-                      binColorClassKey = 'it-recyclable-plastic_metal';
-                      binNameKey = 'binNameRecyclingIT_Yellow';
-                      binIconClass = 'fa-recycle';
-                      specificInstructionKey = 'instructionRecyclingIT_Yellow';
-                  }
-                  break;
-              case 'organic':
-                  binColorClassKey = 'it-organic';
-                  binNameKey = 'binNameOrganicIT';
-                  binIconClass = 'fa-leaf';
-                  specificInstructionKey = 'instructionOrganicIT';
-                  break;
-              case 'hazardous':
-                  binColorClassKey = 'it-hazardous';
-                  binNameKey = 'binNameHazardousIT';
-                  binIconClass = 'fa-triangle-exclamation';
-                  specificInstructionKey = 'instructionHazardousIT';
-                  break;
-              default: // general-waste
-                  binColorClassKey = 'it-general-waste';
-                  binNameKey = 'binNameGeneralIT';
-                  binIconClass = 'fa-trash-alt';
-                  specificInstructionKey = 'instructionGeneralIT';
-          }
-      } else { // US or Default Logic (Existing)
-          switch(binType) {
-              case 'recyclable':
-                  binColorClassKey = 'us-recyclable';
-                  binNameKey = 'binNameRecyclingUS'; // Use US as default naming scheme
-                  binIconClass = 'fa-recycle';
-                  specificInstructionKey = 'instructionRecyclingUS';
-                  break;
-              case 'organic':
-                  binColorClassKey = 'us-organic';
-                  binNameKey = 'binNameOrganicUS';
-                  binIconClass = 'fa-leaf';
-                  specificInstructionKey = 'instructionOrganicUS';
-                  break;
-              case 'hazardous':
-                  binColorClassKey = 'us-hazardous';
-                  binNameKey = 'binNameHazardousUS';
-                  binIconClass = 'fa-triangle-exclamation';
-                  specificInstructionKey = 'instructionHazardousUS';
-                  break;
-              default: // general-waste
-                  binColorClassKey = 'us-general-waste';
-                  binNameKey = 'binNameGeneralUS';
-                  binIconClass = 'fa-trash-alt';
-                  specificInstructionKey = 'instructionGeneralUS';
-          }
-      }
-  
-      // Get Regional Bin Name (Use the region's specific translation, fallback to English for region, fallback to key)
-      regionalBinName = t_region_specific?.[binNameKey]
-                      || t_region_en[binNameKey]
-                      || binNameKey;
-  
-      // Get UI language bin name (Use UI language, fallback to regional name)
-      uiBinName = t_ui?.[binNameKey] || regionalBinName;
-  
-      return {
-          binColorClassKey, // e.g., 'br-recyclable-paper'
-          regionalBinName,  // Name in the region's typical language (from translations)
-          uiBinName,        // Name in the selected UI language (from translations)
-          binIconClass,
-          headerMaterialSummary, // Material summary in UI language
-          binNameKey, // e.g., 'binNameRecyclingBR_Paper'
-          specificInstructionKey // e.g., 'instructionRecyclingBR_Paper'
-      };
-  }
-  
-  // Helper function to generate appropriate instruction text
-  function generateInstructionText(item, details) {
-      const t_ui = translations[currentLanguage] || translations.en;
-      const t_region = translations[userCountry] || translations.en; // Translations for the *selected region*
-      const { primaryBin, material, isContaminated } = item;
-      const { regionalBinName, specificInstructionKey } = details;
-      let instructionText = "";
-      let targetBinName = regionalBinName; // Use the regional name in instructions by default
-  
-      // Handle contaminated recyclables specially - redirect to general waste
-      if (isContaminated && primaryBin === 'recyclable') {
-          // Determine the correct key for general waste bin name and contaminated instruction for the current country
-          let generalBinKey = 'binNameGeneralUS'; // Default
-          let contaminatedInstructionKey = 'instructionContaminatedRecyclableUS'; // Default
-          if (userCountry === 'de') {
-              generalBinKey = 'binNameGeneralDE';
-              contaminatedInstructionKey = 'instructionContaminatedRecyclableDE';
-          } else if (userCountry === 'it') {
-              generalBinKey = 'binNameGeneralIT';
-              contaminatedInstructionKey = 'instructionContaminatedRecyclableIT';
-          } else if (userCountry === 'br') {
-              generalBinKey = 'binNameGeneralBR';
-              contaminatedInstructionKey = 'instructionContaminatedRecyclableBR';
-          }
-  
-          // Get the name of the general waste bin in the region's language
-          const generalBinName = t_region?.[generalBinKey]
-                              || translations.en[generalBinKey] // Fallback to English regional
-                              || t_ui.binGeneral; // Fallback to UI generic
-  
-          // Get the contaminated instruction text in the UI language with fallbacks
-          const contaminatedText = t_ui?.[contaminatedInstructionKey] || 
-                               translations.en[contaminatedInstructionKey] || 
-                               t_ui?.aiContaminatedWarning ||
-                               "Item appears contaminated. Place in the {binName} instead.";
-          
-          // Make sure we safely do the replacement
-          instructionText = contaminatedText.replace('{binName}', generalBinName || t_ui?.binGeneral || "General Waste");
-      } else {
-          // Use the specific instruction key determined by generateBinDetails
-          // Fetch instruction in UI language, fallback to English version of key, fallback to UI generic, absolute fallback
-          instructionText = t_ui?.[specificInstructionKey]
-                          || translations.en[specificInstructionKey]
-                          || t_ui.instructionGeneral // Generic UI fallback
-                          || "Place in the {binName}."; // Absolute fallback
-  
-          // Replace placeholders
-          instructionText = instructionText.replace('{binName}', targetBinName);
-          // Use material name from UI language translations if available
-          const uiMaterialName = t_ui?.[`material${material?.charAt(0).toUpperCase() + material?.slice(1)}`] || material || 'material';
-          instructionText = instructionText.replace('{material}', uiMaterialName);
-      }
-  
-      // Add a note to always check local guidelines
-      const checkLocalText = t_ui?.instructionCheckLocal || translations.en.instructionCheckLocal;
-      const searchItem = item.itemName || (material ? `${t_ui?.[`material${material?.charAt(0).toUpperCase() + material?.slice(1)}`] || material} item` : 'item');
-      const countryNameElement = countrySelect.querySelector(`option[value="${userCountry}"]`);
-      const countryName = countryNameElement ? countryNameElement.text : userCountry.toUpperCase(); // Get full country name or code
-      const searchTerm = `${t_ui?.binRecycling || 'Recycling'} guidelines ${searchItem} ${countryName}`;
-      const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchTerm)}`;
-      instructionText += ` <a href="${searchUrl}" target="_blank" class="text-blue-600 hover:underline">(${checkLocalText})</a>`;
-  
-      return { instructionText };
-  }
-  
-  function updateUIText(lang) {
-      const t = translations[lang] || translations.en; // Fallback to English
-      if (!t) {
-          console.warn(`Language "${lang}" not found.`);
-          return;
-      }
-      document.documentElement.lang = lang; // Set page language attribute
-      document.getElementById('app-title-text').textContent = t.appTitle;
-      document.getElementById('language-label').textContent = t.languageLabel;
-      document.getElementById('country-label').textContent = t.countryLabel;
-      document.getElementById('instructions-text').innerHTML = `<strong>${t.instructionsTitle || 'How to use:'}</strong> ${t.instructionsText || 'Point your camera...'}`;
-      document.getElementById('scan-button-text').textContent = t.scanButtonText || 'Identify Item';
-      document.getElementById('history-button-text').textContent = t.historyButtonText || 'Scan History';
-      // Update modal title and empty message if modal elements exist
-      const modalTitle = document.getElementById('history-modal-title');
-      const emptyState = document.getElementById('history-empty-state');
-      if(modalTitle) modalTitle.textContent = t.historyModalTitle || 'Scan History';
-      // Note: Empty state text is hardcoded in HTML for better UX
-  
-      // Update country names in dropdown to current language if available
-      // This is a bit more complex as it requires mapping values to translated text
-      // For simplicity, we'll keep the country dropdown text in English for now.
-      // You could add a function here to iterate through countrySelect options
-      // and update their text based on a translation map if needed.
-  }
-  
-  // --- Display Results Function (Handles success and AI-reported failure) ---
-  function displayAIResults(items) {
-      hideSpinner(); // Hide spinner now that we have a response
-      lastResultItems = items; // Store raw items array
-      const t = translations[currentLanguage] || translations.en;
-  
-      // 1. Handle invalid input
-      if (!items || !Array.isArray(items)) {
-          console.error("displayAIResults called with invalid items data:", items);
-          displayError("errorAIStructure");
-          lastResultItems = null;
-          return;
-      }
-  
-      // 2. Handle empty list from AI
-      if (items.length === 0) {
-          console.log("AI returned empty 'items' list.");
-          displayFailureResult(
-              t.errorAINoItemFound,
-              t.instructionError
-          );
-          lastResultItems = null;
-          return;
-      }
-  
-      // --- Focus on the first item ---
-      const item = items[0];
-  
-      // 3. Handle specific \"error\" bin case
-      if (item.primaryBin === 'error') {
-          console.log("AI reported identification failure:", item.reasoning);
-          displayFailureResult(
-              item.itemName || t.binNameError,
-              item.reasoning || t.instructionError
-          );
-          lastResultItems = items; // Keep for debugging
-          // Do NOT save error to history (handled in saveResultToHistory)
-          return;
-      }
-  
-      // --- Proceed with NORMAL item display ---
-      const {
-          itemName: detectedItemName,
-          primaryBin,
-          primaryConfidence,
-          secondaryBin,
-          secondaryConfidence,
-          material,
-          reasoning,
-          isContaminated,
-          position
-      } = item;
-  
-      // Generate details based on the identification
-      const details = generateBinDetails(primaryBin, material, userCountry);
-      const { binColorClassKey, regionalBinName, uiBinName, binIconClass, headerMaterialSummary, specificInstructionKey } = details;
-  
-      // Get Tailwind classes
-      const bgColorClass = binColorClasses[binColorClassKey] || binColorClasses['default-general-waste'];
-      const borderColorClass = binBorderColorClasses[binColorClassKey] || binBorderColorClasses['default-general-waste'];
-  
-      // --- Update Header ---
-      // Add visual feedback for bin selection
-      binHeader.className = `bin-header flex flex-col items-center justify-center p-6 text-white text-center min-h-[180px] ${bgColorClass} transition-all duration-500 ease-in-out transform`;
-      binHeader.style.transform = 'scale(1)';
-      binHeader.style.opacity = '1';
-      
-      // Force reflow
-      binHeader.offsetHeight;
-      
-      // Add animation
-      binHeader.style.transform = 'scale(1.05)';
-      binHeader.style.opacity = '0.8';
-      
-      // Reset to normal
-      setTimeout(() => {
-          binHeader.style.transform = 'scale(1)';
-          binHeader.style.opacity = '1';
-      }, 300);
-      
-      binHeader.innerHTML = `
-          <i class="fas ${binIconClass} fa-3x mb-3"></i>
-          <span class="block text-2xl font-bold leading-tight bin-name-region">${regionalBinName}</span>
-          ${ currentLanguage !== userCountry && uiBinName !== regionalBinName ? `<span class="block text-sm opacity-80 mt-1 bin-name-ui-lang">(${uiBinName})</span>` : '' }
-          <div class="bin-material text-sm font-medium mt-2 opacity-90">${headerMaterialSummary}</div>
-      `;
-  
-      // --- Update Item Details ---
-      itemName.textContent = detectedItemName || t.materialMixed || "Identified Item"; // Use generic name if AI fails
-  
-      // Clear previous dynamic content
-      const detailsContainer = document.querySelector('.item-details');
-      const oldDynamicElements = detailsContainer.querySelectorAll('.dynamic-result-element');
-      oldDynamicElements.forEach(el => el.remove());
-  
-      let lastInsertedElement = itemName;
-  
-      // Confidence Score
-      const confidenceEl = createDynamicElement('item-confidence', 'text-sm text-gray-600 mt-1 mb-3');
-      confidenceEl.innerHTML = `<strong>${t.aiConfidencePrefix}</strong> ${Math.round((primaryConfidence || 0) * 100)}%`;
-      lastInsertedElement.insertAdjacentElement('afterend', confidenceEl);
-      lastInsertedElement = confidenceEl;
-  
-      // Secondary Guess
-      if (secondaryBin && secondaryConfidence && secondaryConfidence > 0.1) {
-          // Get the name for the secondary bin suggestion based on current settings
-          const { regionalBinName: secondaryRegionalName } = generateBinDetails(secondaryBin, null, userCountry);
-          const secondaryGuessEl = createDynamicElement('item-secondary-guess', 'text-sm text-gray-500 mb-3');
-          secondaryGuessEl.innerHTML = `<strong>${t.aiSecondaryGuessPrefix}</strong> ${secondaryRegionalName} (${Math.round(secondaryConfidence * 100)}%)`;
-          lastInsertedElement.insertAdjacentElement('afterend', secondaryGuessEl);
-          lastInsertedElement = secondaryGuessEl;
-      }
-  
-      // --- Update Instructions ---
-      const { instructionText: generatedInstructionText } = generateInstructionText(item, details);
-      binInstructions.innerHTML = generatedInstructionText;
-      binInstructions.className = `bin-instructions text-base font-medium mt-4 mb-3 p-4 rounded-r-md border-l-4 ${borderColorClass}`;
-      binInstructions.style.display = 'block';
-      detailsHr.style.display = 'block';
-      lastInsertedElement = binInstructions; // Insert after instructions
-  
-      // --- AI Reasoning / Description ---
-      itemDescription.textContent = `${t.aiAnalysisPrefix} ${reasoning || 'N/A'}`;
-      itemDescription.style.display = 'block';
-      lastInsertedElement.insertAdjacentElement('afterend', itemDescription); // Insert desc after instructions
-      lastInsertedElement = itemDescription;
-  
-      // --- Contamination Warning ---
-      if (isContaminated) {
-          const contaminationEl = createDynamicElement('contamination-warning', 'bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-2 rounded relative text-sm mt-4');
-          contaminationEl.innerHTML = `<i class=\"fa-solid fa-triangle-exclamation mr-1\"></i> ${t.aiContaminatedWarning || "Item appears contaminated. May need to go in General Waste."}`;
-          lastInsertedElement.insertAdjacentElement('afterend', contaminationEl);
-          lastInsertedElement = contaminationEl;
-      }
-  
-      // --- Position Info ---
-      if (position) {
-          const positionEl = createDynamicElement('item-position', 'text-xs text-gray-500 mt-3');
-          let positionText = position;
-          
-          // Translate common position values
-          if (t.positions && t.positions[position]) {
-              positionText = t.positions[position];
-          }
-          
-          positionEl.innerHTML = `<strong>${t.aiPositionPrefix || "Detected at:"}</strong> ${positionText}`;
-          lastInsertedElement.insertAdjacentElement('afterend', positionEl);
-          lastInsertedElement = positionEl;
-      }
-  
-      // --- Multiple Items Note ---
-      if (items.length > 1) {
-          const multiItemsEl = createDynamicElement('multi-items-note', 'bg-blue-100 border border-blue-400 text-blue-700 px-4 py-2 rounded relative text-sm mt-4');
-          multiItemsEl.innerHTML = `<i class=\"fa-solid fa-circle-info mr-1\"></i> ${t.multipleItemsDetected}`;
-          lastInsertedElement.insertAdjacentElement('afterend', multiItemsEl);
-          lastInsertedElement = multiItemsEl;
-      }
-  
+function updateAppStatus(message, type = 'info') {
+    const statusElement = document.getElementById('app-status');
+    if (statusElement) {
+        let icon = 'fas fa-leaf text-green-500';
+        if (type === 'loading') icon = 'fas fa-spinner fa-spin text-blue-500';
+        else if (type === 'error') icon = 'fas fa-exclamation-triangle text-red-500';
+        else if (type === 'success') icon = 'fas fa-check-circle text-green-500';
+        
+        statusElement.innerHTML = `<i class="${icon} mr-1" aria-hidden="true"></i>${message}`;
+    }
+}
+
+function hideSpinner() {
+    outputDiv.innerHTML = `<div id="app-status" class="text-center text-sm text-gray-500 py-2">
+                            <i class="fas fa-leaf text-green-500 mr-1" aria-hidden="true"></i>
+                            Ready to scan
+                          </div>`;
+    scanButton.disabled = false; // Re-enable button after attempt
+    updateAppStatus('Ready to scan', 'info');
+}
+
+function showCameraLoading() {
+    const cameraLoading = document.getElementById('camera-loading');
+    if (cameraLoading) {
+        cameraLoading.style.display = 'flex';
+    }
+}
+
+function hideCameraLoading() {
+    const cameraLoading = document.getElementById('camera-loading');
+    if (cameraLoading) {
+        cameraLoading.style.display = 'none';
+    }
+}
+
+function displayError(messageKey, detail = '') {
+    // This function displays errors *outside* the result card (e.g., camera failure)
+    const lang = currentLanguage;
+    const message = translations[lang]?.[messageKey] || translations.en[messageKey] || messageKey;
+    outputDiv.innerHTML = `<div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                            <strong class="font-bold">Error:</strong>
+                            <span class="block sm:inline">${message} ${detail}</span>
+                          </div>
+                          <div id="app-status" class="text-center text-sm text-gray-500 py-2 mt-2">
+                            <i class="fas fa-exclamation-triangle text-red-500 mr-1" aria-hidden="true"></i>
+                            Error occurred
+                          </div>`;
+    // Don't hide result card on error - keep welcome state visible
+    const welcomeState = document.getElementById('welcome-state');
+    const resultContent = document.getElementById('result-content');
+    if (welcomeState) welcomeState.classList.remove('hidden');
+    if (resultContent) resultContent.classList.add('hidden');
+    resultCard.classList.remove('hidden'); // Keep card visible to show welcome state
+    scanButton.disabled = false;
+    updateAppStatus('Error occurred', 'error');
+}
+
+// Helper to generate bin details
+function generateBinDetails(binType, material, country) {
+    // Default values
+    let binColorClassKey = 'default-general-waste';
+    let regionalBinName = 'General Waste'; // Fallback name in English
+    let uiBinName = 'General Waste'; // Fallback name in English
+    let binIconClass = 'fa-trash-alt';
+    let headerMaterialSummary = 'Mixed/Non-Recyclable'; // Fallback name in English
+    let binNameKey = 'binGeneral'; // Key for translation lookup
+    let specificInstructionKey = 'instructionGeneral'; // Key for specific instruction text
+
+    const t_region_en = translations.en; // Use English base for structure
+    const t_ui = translations[currentLanguage] || translations.en;
+    const t_region_specific = translations[country] || translations.en; // Translations for the *selected region*
+
+    // Determine Material Summary (in UI language) - Use UI language keys first
+    const materialLower = material ? material.toLowerCase() : '';
+    if (materialLower.includes('paper') || materialLower.includes('cardboard')) {
+        headerMaterialSummary = t_ui.materialPaper || t_region_en.materialPaper;
+    } else if (materialLower.includes('glass')) {
+        headerMaterialSummary = t_ui.materialGlass || t_region_en.materialGlass;
+    } else if (materialLower.includes('plastic') || materialLower.includes('pet')) {
+        headerMaterialSummary = t_ui.materialPlastic || t_region_en.materialPlastic;
+    } else if (materialLower.includes('metal') || materialLower.includes('aluminum') || materialLower.includes('steel')) {
+        headerMaterialSummary = t_ui.materialMetal || t_region_en.materialMetal;
+    } else if (materialLower.includes('food') || materialLower.includes('organic')) {
+        headerMaterialSummary = t_ui.materialOrganic || t_region_en.materialOrganic;
+    } else if (materialLower.includes('hazard') || materialLower.includes('toxic') || binType === 'hazardous') {
+        headerMaterialSummary = t_ui.materialHazardous || t_region_en.materialHazardous;
+    } else if (binType === 'organic') {
+        headerMaterialSummary = t_ui.materialOrganic || t_region_en.materialOrganic;
+    } else if (binType === 'recyclable') {
+        // If recyclable but no specific material, use generic term
+        headerMaterialSummary = t_ui.materialRecyclable || t_region_en.materialRecyclable;
+    } else { // General waste or unspecified
+        headerMaterialSummary = t_ui.materialMixed || t_region_en.materialMixed;
+    }
+
+    // Set bin class, name, icon, and instruction key based on bin type, material hint, and country
+    if (country === 'br') { // Brazil Specific Logic
+        switch(binType) {
+            case 'recyclable':
+                if (materialLower.includes('paper') || materialLower.includes('cardboard')) {
+                    binColorClassKey = 'br-recyclable-paper';
+                    binNameKey = 'binNameRecyclingBR_Paper';
+                    binIconClass = 'fa-file-alt'; // Paper icon
+                    specificInstructionKey = 'instructionRecyclingBR_Paper';
+                } else if (materialLower.includes('plastic') || materialLower.includes('pet')) {
+                    binColorClassKey = 'br-recyclable-plastic';
+                    binNameKey = 'binNameRecyclingBR_Plastic';
+                    binIconClass = 'fa-bottle-water'; // Plastic icon
+                    specificInstructionKey = 'instructionRecyclingBR_Plastic';
+                } else if (materialLower.includes('glass')) {
+                    binColorClassKey = 'br-recyclable-glass';
+                    binNameKey = 'binNameRecyclingBR_Glass';
+                    binIconClass = 'fa-wine-bottle'; // Glass icon
+                    specificInstructionKey = 'instructionRecyclingBR_Glass';
+                } else if (materialLower.includes('metal') || materialLower.includes('aluminum') || materialLower.includes('steel')) {
+                    binColorClassKey = 'br-recyclable-metal';
+                    binNameKey = 'binNameRecyclingBR_Metal';
+                    binIconClass = 'fa-gear'; // Using gear as fallback for metal
+                    specificInstructionKey = 'instructionRecyclingBR_Metal';
+                } else { // Generic recyclable if material unknown/unmatched
+                    binColorClassKey = 'default-recyclable'; // Fallback blue
+                    binNameKey = 'binRecycling'; // Generic key
+                    binIconClass = 'fa-recycle';
+                    specificInstructionKey = 'instructionRecycling'; // Use generic instruction
+                }
+                break;
+            case 'organic':
+                binColorClassKey = 'br-organic';
+                binNameKey = 'binNameOrganicBR';
+                binIconClass = 'fa-leaf';
+                specificInstructionKey = 'instructionOrganicBR';
+                break;
+            case 'hazardous':
+                binColorClassKey = 'br-hazardous';
+                binNameKey = 'binNameHazardousBR';
+                binIconClass = 'fa-triangle-exclamation';
+                specificInstructionKey = 'instructionHazardousBR';
+                break;
+            default: // general-waste
+                binColorClassKey = 'br-general-waste';
+                binNameKey = 'binNameGeneralBR';
+                binIconClass = 'fa-trash-alt';
+                specificInstructionKey = 'instructionGeneralBR';
+        }
+    } else if (country === 'de') { // German Logic (Existing)
+        switch(binType) {
+            case 'recyclable':
+                if (materialLower.includes('paper') || materialLower.includes('cardboard')) {
+                    binColorClassKey = 'de-recyclable-paper';
+                    binNameKey = 'binNameRecyclingDE_Blue';
+                    binIconClass = 'fa-file-alt';
+                    specificInstructionKey = 'instructionRecyclingDE_Blue';
+                } else { // Assume Yellow bin for other recyclables
+                    binColorClassKey = 'de-recyclable-yellow';
+                    binNameKey = 'binNameRecyclingDE_Yellow';
+                    binIconClass = 'fa-recycle';
+                    specificInstructionKey = 'instructionRecyclingDE_Yellow';
+                }
+                break;
+            case 'organic':
+                binColorClassKey = 'de-organic';
+                binNameKey = 'binNameOrganicDE';
+                binIconClass = 'fa-leaf';
+                specificInstructionKey = 'instructionOrganicDE';
+                break;
+            case 'hazardous':
+                binColorClassKey = 'de-hazardous';
+                binNameKey = 'binNameHazardousDE';
+                binIconClass = 'fa-triangle-exclamation';
+                specificInstructionKey = 'instructionHazardousDE';
+                break;
+            default: // general-waste
+                binColorClassKey = 'de-general-waste';
+                binNameKey = 'binNameGeneralDE';
+                binIconClass = 'fa-trash-alt';
+                specificInstructionKey = 'instructionGeneralDE';
+        }
+    } else if (country === 'it') { // Italian Logic (Existing)
+        switch(binType) {
+            case 'recyclable':
+                if (materialLower.includes('paper') || materialLower.includes('cardboard')) {
+                    binColorClassKey = 'it-recyclable-paper';
+                    binNameKey = 'binNameRecyclingIT_Blue';
+                    binIconClass = 'fa-file-alt';
+                    specificInstructionKey = 'instructionRecyclingIT_Blue';
+                } else if (materialLower.includes('glass')) {
+                    binColorClassKey = 'it-recyclable-glass';
+                    binNameKey = 'binNameRecyclingIT_Green';
+                    binIconClass = 'fa-wine-bottle';
+                    specificInstructionKey = 'instructionRecyclingIT_Green';
+                } else { // Assume Yellow bin for plastic/metal
+                    binColorClassKey = 'it-recyclable-plastic_metal';
+                    binNameKey = 'binNameRecyclingIT_Yellow';
+                    binIconClass = 'fa-recycle';
+                    specificInstructionKey = 'instructionRecyclingIT_Yellow';
+                }
+                break;
+            case 'organic':
+                binColorClassKey = 'it-organic';
+                binNameKey = 'binNameOrganicIT';
+                binIconClass = 'fa-leaf';
+                specificInstructionKey = 'instructionOrganicIT';
+                break;
+            case 'hazardous':
+                binColorClassKey = 'it-hazardous';
+                binNameKey = 'binNameHazardousIT';
+                binIconClass = 'fa-triangle-exclamation';
+                specificInstructionKey = 'instructionHazardousIT';
+                break;
+            default: // general-waste
+                binColorClassKey = 'it-general-waste';
+                binNameKey = 'binNameGeneralIT';
+                binIconClass = 'fa-trash-alt';
+                specificInstructionKey = 'instructionGeneralIT';
+        }
+    } else { // US or Default Logic (Existing)
+        switch(binType) {
+            case 'recyclable':
+                binColorClassKey = 'us-recyclable';
+                binNameKey = 'binNameRecyclingUS'; // Use US as default naming scheme
+                binIconClass = 'fa-recycle';
+                specificInstructionKey = 'instructionRecyclingUS';
+                break;
+            case 'organic':
+                binColorClassKey = 'us-organic';
+                binNameKey = 'binNameOrganicUS';
+                binIconClass = 'fa-leaf';
+                specificInstructionKey = 'instructionOrganicUS';
+                break;
+            case 'hazardous':
+                binColorClassKey = 'us-hazardous';
+                binNameKey = 'binNameHazardousUS';
+                binIconClass = 'fa-triangle-exclamation';
+                specificInstructionKey = 'instructionHazardousUS';
+                break;
+            default: // general-waste
+                binColorClassKey = 'us-general-waste';
+                binNameKey = 'binNameGeneralUS';
+                binIconClass = 'fa-trash-alt';
+                specificInstructionKey = 'instructionGeneralUS';
+        }
+    }
+
+    // Get Regional Bin Name (Use the region's specific translation, fallback to English for region, fallback to key)
+    regionalBinName = t_region_specific?.[binNameKey]
+                    || t_region_en[binNameKey]
+                    || binNameKey;
+
+    // Get UI language bin name (Use UI language, fallback to regional name)
+    uiBinName = t_ui?.[binNameKey] || regionalBinName;
+
+    return {
+        binColorClassKey, // e.g., 'br-recyclable-paper'
+        regionalBinName,  // Name in the region's typical language (from translations)
+        uiBinName,        // Name in the selected UI language (from translations)
+        binIconClass,
+        headerMaterialSummary, // Material summary in UI language
+        binNameKey, // e.g., 'binNameRecyclingBR_Paper'
+        specificInstructionKey // e.g., 'instructionRecyclingBR_Paper'
+    };
+}
+
+// Helper function to generate appropriate instruction text
+function generateInstructionText(item, details) {
+    const t_ui = translations[currentLanguage] || translations.en;
+    const t_region = translations[userCountry] || translations.en; // Translations for the *selected region*
+    const { primaryBin, material, isContaminated } = item;
+    const { regionalBinName, specificInstructionKey } = details;
+    let instructionText = "";
+    let targetBinName = regionalBinName; // Use the regional name in instructions by default
+
+    // Handle contaminated recyclables specially - redirect to general waste
+    if (isContaminated && primaryBin === 'recyclable') {
+        // Determine the correct key for general waste bin name and contaminated instruction for the current country
+        let generalBinKey = 'binNameGeneralUS'; // Default
+        let contaminatedInstructionKey = 'instructionContaminatedRecyclableUS'; // Default
+        if (userCountry === 'de') {
+            generalBinKey = 'binNameGeneralDE';
+            contaminatedInstructionKey = 'instructionContaminatedRecyclableDE';
+        } else if (userCountry === 'it') {
+            generalBinKey = 'binNameGeneralIT';
+            contaminatedInstructionKey = 'instructionContaminatedRecyclableIT';
+        } else if (userCountry === 'br') {
+            generalBinKey = 'binNameGeneralBR';
+            contaminatedInstructionKey = 'instructionContaminatedRecyclableBR';
+        }
+
+        // Get the name of the general waste bin in the region's language
+        const generalBinName = t_region?.[generalBinKey]
+                            || translations.en[generalBinKey] // Fallback to English regional
+                            || t_ui.binGeneral; // Fallback to UI generic
+
+        // Get the contaminated instruction text in the UI language with fallbacks
+        const contaminatedText = t_ui?.[contaminatedInstructionKey] || 
+                             translations.en[contaminatedInstructionKey] || 
+                             t_ui?.aiContaminatedWarning ||
+                             "Item appears contaminated. Place in the {binName} instead.";
+        
+        // Make sure we safely do the replacement
+        instructionText = contaminatedText.replace('{binName}', generalBinName || t_ui?.binGeneral || "General Waste");
+    } else {
+        // Use the specific instruction key determined by generateBinDetails
+        // Fetch instruction in UI language, fallback to English version of key, fallback to UI generic, absolute fallback
+        instructionText = t_ui?.[specificInstructionKey]
+                        || translations.en[specificInstructionKey]
+                        || t_ui.instructionGeneral // Generic UI fallback
+                        || "Place in the {binName}."; // Absolute fallback
+
+        // Replace placeholders
+        instructionText = instructionText.replace('{binName}', targetBinName);
+        // Use material name from UI language translations if available
+        const uiMaterialName = t_ui?.[`material${material?.charAt(0).toUpperCase() + material?.slice(1)}`] || material || 'material';
+        instructionText = instructionText.replace('{material}', uiMaterialName);
+    }
+
+    // Add a note to always check local guidelines
+    const checkLocalText = t_ui?.instructionCheckLocal || translations.en.instructionCheckLocal;
+    const searchItem = item.itemName || (material ? `${t_ui?.[`material${material?.charAt(0).toUpperCase() + material?.slice(1)}`] || material} item` : 'item');
+    const countryNameElement = countrySelect.querySelector(`option[value="${userCountry}"]`);
+    const countryName = countryNameElement ? countryNameElement.text : userCountry.toUpperCase(); // Get full country name or code
+    const searchTerm = `${t_ui?.binRecycling || 'Recycling'} guidelines ${searchItem} ${countryName}`;
+    const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(searchTerm)}`;
+    instructionText += ` <a href="${searchUrl}" target="_blank" class="text-blue-600 hover:underline">(${checkLocalText})</a>`;
+
+    return { instructionText };
+}
+
+function updateUIText(lang) {
+    const t = translations[lang] || translations.en; // Fallback to English
+    if (!t) {
+        console.warn(`Language "${lang}" not found.`);
+        return;
+    }
+    document.documentElement.lang = lang; // Set page language attribute
+    document.getElementById('app-title-text').textContent = t.appTitle;
+    document.getElementById('language-label').textContent = t.languageLabel;
+    document.getElementById('country-label').textContent = t.countryLabel;
+    document.getElementById('instructions-text').innerHTML = `<strong>${t.instructionsTitle || 'How to use:'}</strong> ${t.instructionsText || 'Point your camera...'}`;
+    document.getElementById('scan-button-text').textContent = t.scanButtonText || 'Identify Item';
+    document.getElementById('history-button-text').textContent = t.historyButtonText || 'Scan History';
+    // Update modal title and empty message if modal elements exist
+    const modalTitle = document.getElementById('history-modal-title');
+    const emptyState = document.getElementById('history-empty-state');
+    if(modalTitle) modalTitle.textContent = t.historyModalTitle || 'Scan History';
+    // Note: Empty state text is hardcoded in HTML for better UX
+
+    // Update country names in dropdown to current language if available
+    // This is a bit more complex as it requires mapping values to translated text
+    // For simplicity, we'll keep the country dropdown text in English for now.
+    // You could add a function here to iterate through countrySelect options
+    // and update their text based on a translation map if needed.
+}
+
+// --- Display Results Function (Handles success and AI-reported failure) ---
+function displayAIResults(items) {
+    hideSpinner(); // Hide spinner now that we have a response
+    lastResultItems = items; // Store raw items array
+    const t = translations[currentLanguage] || translations.en;
+
+    // 1. Handle invalid input
+    if (!items || !Array.isArray(items)) {
+        console.error("displayAIResults called with invalid items data:", items);
+        displayError("errorAIStructure");
+        lastResultItems = null;
+        return;
+    }
+
+    // 2. Handle empty list from AI
+    if (items.length === 0) {
+        console.log("AI returned empty 'items' list.");
+        displayFailureResult(
+            t.errorAINoItemFound,
+            t.instructionError
+        );
+        lastResultItems = null;
+        return;
+    }
+
+    // --- Focus on the first item ---
+    const item = items[0];
+
+    // 3. Handle specific \"error\" bin case
+    if (item.primaryBin === 'error') {
+        console.log("AI reported identification failure:", item.reasoning);
+        displayFailureResult(
+            item.itemName || t.binNameError,
+            item.reasoning || t.instructionError
+        );
+        lastResultItems = items; // Keep for debugging
+        // Do NOT save error to history (handled in saveResultToHistory)
+        return;
+    }
+
+    // --- Proceed with NORMAL item display ---
+    const {
+        itemName: detectedItemName,
+        primaryBin,
+        primaryConfidence,
+        secondaryBin,
+        secondaryConfidence,
+        material,
+        reasoning,
+        isContaminated,
+        position
+    } = item;
+
+    // Generate details based on the identification
+    const details = generateBinDetails(primaryBin, material, userCountry);
+    const { binColorClassKey, regionalBinName, uiBinName, binIconClass, headerMaterialSummary, specificInstructionKey } = details;
+
+    // Get Tailwind classes
+    const bgColorClass = binColorClasses[binColorClassKey] || binColorClasses['default-general-waste'];
+    const borderColorClass = binBorderColorClasses[binColorClassKey] || binBorderColorClasses['default-general-waste'];
+
+    // --- Update Header ---
+    // Add visual feedback for bin selection
+    binHeader.className = `bin-header flex flex-col items-center justify-center p-6 text-white text-center min-h-[180px] ${bgColorClass} transition-all duration-500 ease-in-out transform`;
+    binHeader.style.transform = 'scale(1)';
+    binHeader.style.opacity = '1';
+    
+    // Force reflow
+    binHeader.offsetHeight;
+    
+    // Add animation
+    binHeader.style.transform = 'scale(1.05)';
+    binHeader.style.opacity = '0.8';
+    
+    // Reset to normal
+    setTimeout(() => {
+        binHeader.style.transform = 'scale(1)';
+        binHeader.style.opacity = '1';
+    }, 300);
+    
+    binHeader.innerHTML = `
+        <i class="fas ${binIconClass} fa-3x mb-3"></i>
+        <span class="block text-2xl font-bold leading-tight bin-name-region">${regionalBinName}</span>
+        ${ currentLanguage !== userCountry && uiBinName !== regionalBinName ? `<span class="block text-sm opacity-80 mt-1 bin-name-ui-lang">(${uiBinName})</span>` : '' }
+        <div class="bin-material text-sm font-medium mt-2 opacity-90">${headerMaterialSummary}</div>
+    `;
+
+    // --- Update Item Details ---
+    itemName.textContent = detectedItemName || t.materialMixed || "Identified Item"; // Use generic name if AI fails
+
+    // Clear previous dynamic content
+    const detailsContainer = document.querySelector('.item-details');
+    const oldDynamicElements = detailsContainer.querySelectorAll('.dynamic-result-element');
+    oldDynamicElements.forEach(el => el.remove());
+
+    let lastInsertedElement = itemName;
+
+    // Confidence Score
+    const confidenceEl = createDynamicElement('item-confidence', 'text-sm text-gray-600 mt-1 mb-3');
+    confidenceEl.innerHTML = `<strong>${t.aiConfidencePrefix}</strong> ${Math.round((primaryConfidence || 0) * 100)}%`;
+    lastInsertedElement.insertAdjacentElement('afterend', confidenceEl);
+    lastInsertedElement = confidenceEl;
+
+    // Secondary Guess
+    if (secondaryBin && secondaryConfidence && secondaryConfidence > 0.1) {
+        // Get the name for the secondary bin suggestion based on current settings
+        const { regionalBinName: secondaryRegionalName } = generateBinDetails(secondaryBin, null, userCountry);
+        const secondaryGuessEl = createDynamicElement('item-secondary-guess', 'text-sm text-gray-500 mb-3');
+        secondaryGuessEl.innerHTML = `<strong>${t.aiSecondaryGuessPrefix}</strong> ${secondaryRegionalName} (${Math.round(secondaryConfidence * 100)}%)`;
+        lastInsertedElement.insertAdjacentElement('afterend', secondaryGuessEl);
+        lastInsertedElement = secondaryGuessEl;
+    }
+
+    // --- Update Instructions ---
+    const { instructionText: generatedInstructionText } = generateInstructionText(item, details);
+    binInstructions.innerHTML = generatedInstructionText;
+    binInstructions.className = `bin-instructions text-base font-medium mt-4 mb-3 p-4 rounded-r-md border-l-4 ${borderColorClass}`;
+    binInstructions.style.display = 'block';
+    detailsHr.style.display = 'block';
+    lastInsertedElement = binInstructions; // Insert after instructions
+
+    // --- AI Reasoning / Description ---
+    itemDescription.textContent = `${t.aiAnalysisPrefix} ${reasoning || 'N/A'}`;
+    itemDescription.style.display = 'block';
+    lastInsertedElement.insertAdjacentElement('afterend', itemDescription); // Insert desc after instructions
+    lastInsertedElement = itemDescription;
+
+    // --- Contamination Warning ---
+    if (isContaminated) {
+        const contaminationEl = createDynamicElement('contamination-warning', 'bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-2 rounded relative text-sm mt-4');
+        contaminationEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-1"></i> ${t.aiContaminatedWarning || "Item appears contaminated. May need to go in General Waste."}`;
+        lastInsertedElement.insertAdjacentElement('afterend', contaminationEl);
+        lastInsertedElement = contaminationEl;
+    }
+
+    // --- Position Info ---
+    if (position) {
+        const positionEl = createDynamicElement('item-position', 'text-xs text-gray-500 mt-3');
+        let positionText = position;
+        
+        // Translate common position values
+        if (t.positions && t.positions[position]) {
+            positionText = t.positions[position];
+        }
+        
+        positionEl.innerHTML = `<strong>${t.aiPositionPrefix || "Detected at:"}</strong> ${positionText}`;
+        lastInsertedElement.insertAdjacentElement('afterend', positionEl);
+        lastInsertedElement = positionEl;
+    }
+
+    // --- Multiple Items Note ---
+    if (items.length > 1) {
+        const multiItemsEl = createDynamicElement('multi-items-note', 'bg-blue-100 border border-blue-400 text-blue-700 px-4 py-2 rounded relative text-sm mt-4');
+        multiItemsEl.innerHTML = `<i class="fa-solid fa-circle-info mr-1"></i> ${t.multipleItemsDetected}`;
+        lastInsertedElement.insertAdjacentElement('afterend', multiItemsEl);
+        lastInsertedElement = multiItemsEl;
+    }
+
     // --- Feedback Buttons ---
     const feedbackEl = createDynamicElement('feedback-container', 'text-center mt-6 mb-2');
     feedbackEl.innerHTML = `
@@ -861,7 +863,7 @@ function handleShare() {
         // Create share data
         const shareData = {
             title: 'EasyBin Waste Sorting Result',
-            text: `I identified a ${item.itemName} as ${item.primaryBin} waste with ${Math.round(item.primaryConfidence * 100)}% confidence.`,
+            text: `I identified a ${item.itemName} as ${item.primaryBin} waste with ${Math.round(item.primaryConfidence * 100)}% confidence.`, 
             url: window.location.href
         };
         
@@ -1129,6 +1131,8 @@ historyButton.addEventListener('click', () => toggleHistoryModal(true));
 
 retakeButton.addEventListener('click', handleRetake);
 
+// Open Camera button event listener will be added in DOMContentLoaded
+
 // Share button event listener
 const shareButton = document.getElementById('share-button');
 if (shareButton) {
@@ -1264,6 +1268,103 @@ historyModal.addEventListener('click', function(event) {
     }
 });
 
+// --- Pollinations.AI Integration ---
+async function callPollinationsAI(prompt, imageData) {
+    try {
+        console.log("Calling Pollinations.AI vision API...");
+        
+        // imageData is already a data URL string from canvas.toDataURL()
+        let base64Image;
+        if (typeof imageData === 'string' && imageData.startsWith('data:')) {
+            // imageData is already a data URL, use it directly
+            base64Image = imageData;
+        } else {
+            // If it's a blob, convert it
+            base64Image = await blobToBase64(imageData);
+        }
+        
+        const response = await fetch('https://text.pollinations.ai/openai', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Referer': 'https://endemicmedia.github.io'
+            },
+            body: JSON.stringify({
+                model: 'openai',
+                messages: [
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'text',
+                                text: prompt
+                            },
+                            {
+                                type: 'image_url',
+                                image_url: {
+                                    url: base64Image
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens: 1000,
+                temperature: 0.1
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Pollinations AI API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log("Raw Pollinations AI response:", data);
+        
+        // Extract content from OpenAI-compatible format
+        const content = data.choices?.[0]?.message?.content || data.content || '';
+        
+        return {
+            content: content,
+            model: 'pollinations-openai',
+            timestamp: new Date().toISOString()
+        };
+        
+    } catch (error) {
+        console.error("Pollinations AI error:", error);
+        
+        // Fallback to structured fake response for testing/demo purposes
+        const fallbackResponse = {
+            "items": [{
+                "itemName": "Unidentified Item",
+                "primaryBin": "general-waste",
+                "primaryConfidence": 0.6,
+                "secondaryBin": "recyclable",
+                "secondaryConfidence": 0.3,
+                "material": "unknown",
+                "reasoning": "Unable to connect to AI service. This is a fallback response for testing purposes.",
+                "isContaminated": false,
+                "position": "center"
+            }]
+        };
+        
+        return {
+            content: JSON.stringify(fallbackResponse),
+            model: 'fallback-testing',
+            timestamp: new Date().toISOString()
+        };
+    }
+}
+
+// Helper function to convert blob to base64
+function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
 // --- Scan Button Action ---
 scanButton.onclick = function() {
     showSpinner();
@@ -1349,7 +1450,11 @@ Example for a successful identification:
 }`;
 
         console.log("Sending prompt to AI...");
-        puter.ai.chat(prompt, imageData)
+        
+        // Check if Puter.js is available, otherwise use fallback
+        if (typeof puter !== 'undefined' && puter.ai) {
+            console.log("Using Puter.ai for analysis");
+            puter.ai.chat(prompt, imageData)
             .then(response => {
                 console.log("Raw AI Response Received:", response);
                 let aiResult;
@@ -1411,6 +1516,50 @@ Example for a successful identification:
                 // Spinner is managed by displayAIResults/displayError
                 scanButton.disabled = false;
             });
+        } else {
+            // Real AI system using Pollinations.AI vision
+            console.log("Puter.js not available, using Pollinations.AI vision system");
+            
+            // Call Pollinations.AI for real vision analysis
+            callPollinationsAI(prompt, imageData).then(fallbackResponse => {
+                console.log("Pollinations AI Response:", fallbackResponse);
+                
+                try {
+                    const aiResult = JSON.parse(fallbackResponse.content);
+                    lastAIResponse = fallbackResponse;
+                    
+                    if (aiResult.items && aiResult.items.length > 0) {
+                        displayAIResults(aiResult.items);
+                        
+                        // Save to history (for successful scans)
+                        const item = aiResult.items[0];
+                        if (item.primaryBin !== 'error') {
+                            saveResultToHistory(item, lastImageDataUrl);
+                            
+                            // Track successful scan
+                            if (window.easyBinAnalytics) {
+                                window.easyBinAnalytics.trackScanSuccess(
+                                    item.itemName, 
+                                    item.primaryConfidence, 
+                                    item.primaryBin,
+                                    userCountry, 
+                                    currentLanguage
+                                );
+                            }
+                        }
+                    } else {
+                        displayError("errorAINoItemFound");
+                        lastResultItems = null;
+                    }
+                } catch (parseError) {
+                    console.error('Fallback AI JSON Parse Error:', parseError);
+                    displayError("errorAIStructure");
+                    lastResultItems = null;
+                }
+                
+                scanButton.disabled = false;
+            }, 1500); // Simulate AI processing delay
+        }
 
     } catch (error) {
         console.error("Error during capture/AI call setup:", error);
@@ -1497,71 +1646,107 @@ async function initApp() {
         userCountry = countrySelect.value; // Ensure default is set on error
     }
 
-    // 2. Set up canvas size
-    canvas.width = 640;
-    canvas.height = 480;
-
-    // 3. Initialize translations for default language (English initially)
-    // The language dropdown change listener will handle subsequent updates.
-    updateUIText(currentLanguage);
-
-    // 4. Initialize Camera
-    if (navigator.mediaDevices?.getUserMedia) {
-        showCameraLoading();
+    // 2. Update UI text based on current language
+    updateUIText();
+    
+    // 3. Enable country change event listener
+    countrySelect.addEventListener('change', function() {
+        userCountry = countrySelect.value;
+        console.log("Country changed to:", userCountry.toUpperCase());
         
+        // Track country change
+        if (window.easyBinAnalytics) {
+            window.easyBinAnalytics.trackSettingChange('country', 'previous', userCountry);
+        }
+    });
+    
+    // 4. Enable language change listener
+    languageSelect.addEventListener('change', function() {
+        currentLanguage = languageSelect.value;
+        console.log("Language changed to:", currentLanguage);
+        updateUIText();
+        
+        // Track language change
+        if (window.easyBinAnalytics) {
+            window.easyBinAnalytics.trackSettingChange('language', 'previous', currentLanguage);
+        }
+    });
+    
+    // 5. Camera setup - wait for user to click "Open Camera" button
+    updateAppStatus('Click "Open Camera" to start', 'info');
+}
+
+// --- Camera Initialization Function ---
+async function initializeCamera() {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        console.log("getUserMedia supported. Requesting camera access...");
+        updateAppStatus('Requesting camera access...', 'loading');
         try {
             const stream = await navigator.mediaDevices.getUserMedia({
                 video: {
-                    facingMode: "environment",
+                    facingMode: "environment",  // Use back camera for object detection
                     width: { ideal: 1280 },
-                    height: { ideal: 720 },
+                    height: { ideal: 720 }
                 }
             });
+            console.log("Camera access granted. Setting up video stream...");
             video.srcObject = stream;
-            video.onloadedmetadata = function(e) {
-                video.play().catch(playError => {
-                    console.error("Video play failed:", playError);
-                    video.muted = true; // Try muted play as fallback
-                    video.play().catch(e2 => console.error("Muted play failed:", e2));
-                });
-                const track = stream.getVideoTracks()[0];
-                const settings = track.getSettings();
-                const aspectRatio = settings.width / settings.height;
-                canvas.height = canvas.width / aspectRatio; // Adjust canvas height to match video aspect ratio
-                console.log(`Camera initialized (${settings.width}x${settings.height}), canvas aspect ratio adjusted`);
-                scanButton.disabled = false; // Enable scan button
-                
-                // Hide loading state once camera is ready
-                hideCameraLoading();
-                
-                // Set ready status
-                updateAppStatus('Ready to scan', 'success');
-            };
-        } catch (error) {
-            console.error("Camera access error:", error);
+            await video.play();
+            console.log("Video stream started successfully.");
             
-            // Hide loading state
-            hideCameraLoading();
+            // Make video visible
+            video.classList.remove('hidden');
+            console.log("Camera video is now visible");
             
-            if (error.name === "NotAllowedError" || error.name === "PermissionDeniedError") {
-                // Show permission denied help screen
-                const permissionDenied = document.getElementById('camera-permission-denied');
-                if (permissionDenied) {
-                    permissionDenied.classList.remove('hidden');
-                }
-            } else {
-                let errorKey = "errorCameraInit";
-                if (error.name === "NotFoundError" || error.name === "DevicesNotFoundError") {
-                    errorKey = "errorCameraNotFound";
-                }
-                displayError(errorKey, `(${error.name})`);
+            // Hide open camera button container since camera is now active
+            if (openCameraContainer) {
+                openCameraContainer.classList.add('hidden');
+            }
+            
+            // Enable scan button and update status immediately
+            console.log("Enabling scan button");
+            console.log("scanButton element:", scanButton);
+            console.log("scanButton before:", scanButton?.disabled);
+            scanButton.disabled = false;
+            console.log("scanButton after:", scanButton?.disabled);
+            updateAppStatus('Ready to scan!', 'ready');
+            
+            // Track successful camera setup
+            if (window.easyBinAnalytics) {
+                window.easyBinAnalytics.trackEvent('camera_setup_success', { country: userCountry, language: currentLanguage });
+            }
+            
+            // Also listen for loadeddata as backup
+            video.addEventListener('loadeddata', () => {
+                console.log("Video loaded data event fired");
+                // Ensure button is enabled (redundant but safe)
+                scanButton.disabled = false;
+                updateAppStatus('Ready to scan!', 'ready');
+            });
+            
+            // Start loading state animation if available
+            const loadingAnimation = document.querySelector('.loading-dots');
+            if (loadingAnimation) {
+                loadingAnimation.classList.add('animate');
+            }
+            
+        } catch (err) {
+            console.error("Camera access denied or failed:", err);
+            updateAppStatus('Camera access required. Please allow camera permissions.', 'error');
+            const permissionsHelp = document.getElementById('permissions-help');
+            if (permissionsHelp) {
+                permissionsHelp.classList.remove('hidden');
+            }
+            
+            // Track camera setup failure
+            if (window.easyBinAnalytics) {
+                window.easyBinAnalytics.trackError('camera_setup_failure', err.message, { country: userCountry, language: currentLanguage });
             }
         }
     } else {
-        displayError("errorCameraInit", "getUserMedia() is not supported.");
-        
-        // Hide loading state on error
-        hideCameraLoading();
+        console.error("getUserMedia not supported in this browser");
+        updateAppStatus('Camera not supported in this browser.', 'error');
+        document.getElementById('camera-not-supported').classList.remove('hidden');
     }
 }
 
@@ -1573,27 +1758,35 @@ document.getElementById('retry-camera')?.addEventListener('click', function() {
     }
     
     // Re-initialize camera
-    initApp();
+    initializeCamera();
 });
 
-// Add retry camera functionality
-document.getElementById('retry-camera')?.addEventListener('click', function() {
-    const permissionDenied = document.getElementById('camera-permission-denied');
-    if (permissionDenied) {
-        permissionDenied.classList.add('hidden');
+// --- Initialize when DOM is ready ---
+document.addEventListener('DOMContentLoaded', function() {
+    console.log("DOM loaded, initializing app...");
+    
+    // Initialize analytics if available
+    if (window.easyBinAnalytics) {
+        window.easyBinAnalytics.trackAppStart();
     }
     
-    // Re-initialize camera
+    // Set up Open Camera button event listener now that DOM is ready
+    const openCameraBtn = document.getElementById('open-camera-button');
+    if (openCameraBtn) {
+        console.log("Setting up Open Camera button event listener");
+        openCameraBtn.addEventListener('click', function() {
+            console.log("Open Camera button clicked");
+            // Initialize camera
+            initializeCamera();
+        });
+    } else {
+        console.error("Open Camera button not found!");
+    }
+    
     initApp();
 });
 
-// --- Start the app ---
-initApp();
-
-// Initialize analytics
-if (window.easyBinAnalytics) {
-    window.easyBinAnalytics.trackAppStart();
-}
+// Analytics initialization handled in DOMContentLoaded
 
 // Add network status monitoring
 window.addEventListener('online', () => {

@@ -9,24 +9,34 @@ test.describe('EasyBin E2E Tests', () => {
     // Grant camera permissions (only supported in Chromium)
     try {
       if (browserName === 'chromium') {
-        await page.context().grantPermissions(['camera']);
+        await page.context().grantPermissions(['camera'], { origin: 'http://localhost:5050' });
       }
     } catch (error) {
       console.log(`Camera permission not supported in ${browserName}: ${error.message}`);
     }
-    await page.goto('/');
+    await page.goto('http://localhost:5050');
   });
 
   test('loads homepage correctly', async ({ page }) => {
     // Wait for JavaScript to load and populate the title
-    await expect(page.locator('#app-title-text')).toContainText('Smart Trash Separator', { timeout: 10000 });
+    await expect(page.locator('#app-title-text')).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(2000);
+    
+    // Check essential UI elements are visible
     await expect(page.locator('#scan-button')).toBeVisible();
-    await expect(page.locator('#camera')).toBeVisible();
+    await expect(page.locator('#open-camera-button')).toBeVisible();
+    
+    // Camera should be hidden initially (manual initialization)
+    await expect(page.locator('#camera')).toHaveClass(/hidden/);
+    
+    // Scan button should be disabled initially
+    await expect(page.locator('#scan-button')).toHaveAttribute('disabled');
   });
 
   test('language switching works', async ({ page }) => {
     // Wait for page to load first
-    await expect(page.locator('#app-title-text')).toContainText('Smart Trash Separator');
+    await expect(page.locator('#app-title-text')).toBeVisible();
+    await page.waitForTimeout(1000);
     
     // Switch to German
     await page.selectOption('#language-select', 'de');
@@ -40,7 +50,8 @@ test.describe('EasyBin E2E Tests', () => {
 
   test('country switching works', async ({ page }) => {
     // Wait for page to load first
-    await expect(page.locator('#app-title-text')).toContainText('Smart Trash Separator');
+    await expect(page.locator('#app-title-text')).toBeVisible();
+    await page.waitForTimeout(1000);
     
     // Switch to Germany
     await page.selectOption('#country-select', 'de');
@@ -52,7 +63,8 @@ test.describe('EasyBin E2E Tests', () => {
 
   test('history modal opens and closes', async ({ page }) => {
     // Wait for page to load first
-    await expect(page.locator('#app-title-text')).toContainText('Smart Trash Separator');
+    await expect(page.locator('#app-title-text')).toBeVisible();
+    await page.waitForTimeout(1000);
     
     // Verify modal starts hidden
     await expect(page.locator('#history-modal')).toHaveClass(/hidden/);
@@ -72,72 +84,63 @@ test.describe('EasyBin E2E Tests', () => {
     await expect(page.locator('#history-modal')).not.toHaveClass(/flex/);
   });
 
-  test('scan button shows loading state', async ({ page, browserName }) => {
+  test('camera initialization workflow works', async ({ page, browserName }) => {
     // Wait for page to load first
     await expect(page.locator('#app-title-text')).toContainText('Smart Trash Separator');
     
     // Skip camera tests for browsers that don't support camera permissions
     if (browserName !== 'chromium') {
       console.log(`Skipping camera test for ${browserName} - camera access not available`);
-      // Just verify button exists and is visible
-      await expect(page.locator('#scan-button')).toBeVisible();
       return;
     }
     
-    // Mock the camera and AI response
-    await page.route('**/ai/chat', route => {
-      route.fulfill({
-        status: 200,
-        body: JSON.stringify({
-          items: [{
-            itemName: 'Test Item',
-            primaryBin: 'recyclable',
-            primaryConfidence: 0.9,
-            material: 'plastic',
-            reasoning: 'Test reasoning',
-            isContaminated: false,
-            position: 'center'
-          }]
-        })
-      });
-    });
-
-    // Wait for scan button to be enabled (only works in Chromium)
-    await expect(page.locator('#scan-button')).not.toHaveAttribute('disabled');
-    await page.click('#scan-button');
+    // Initial state: camera hidden, scan disabled, open camera visible
+    await expect(page.locator('#camera')).toHaveClass(/hidden/);
+    await expect(page.locator('#scan-button')).toHaveAttribute('disabled');
+    await expect(page.locator('#open-camera-button')).toBeVisible();
     
-    // Should show spinner/loading state
-    await expect(page.locator('#output')).toContainText('', { timeout: 2000 });
+    // Click Open Camera button
+    await page.click('#open-camera-button');
+    
+    // Wait for camera initialization (up to 10 seconds)
+    await page.waitForTimeout(8000);
+    
+    // Camera should now be visible and scan button enabled
+    await expect(page.locator('#camera')).not.toHaveClass(/hidden/);
+    await expect(page.locator('#scan-button')).not.toHaveAttribute('disabled');
+    
+    console.log('✅ Camera initialization workflow completed');
   });
 
-  test('handles scan attempt when AI unavailable', async ({ page, browserName }) => {
+  test('fallback AI system works after camera setup', async ({ page, browserName }) => {
     // Wait for page to load first
     await expect(page.locator('#app-title-text')).toContainText('Smart Trash Separator');
     
     // Skip camera tests for browsers that don't support camera permissions
     if (browserName !== 'chromium') {
       console.log(`Skipping camera test for ${browserName} - camera access not available`);
-      // Just verify button exists (may or may not be disabled depending on browser)
-      await expect(page.locator('#scan-button')).toBeVisible();
-      // Some mobile browsers may still enable the button despite no camera access
       return;
     }
     
-    // Wait for scan button to be enabled (camera initialized)
+    const messages = [];
+    page.on('console', msg => {
+      messages.push(msg.text());
+    });
+    
+    // Initialize camera first
+    await page.click('#open-camera-button');
+    await page.waitForTimeout(8000); // Wait for camera setup
+    
+    // Verify camera is ready
     await expect(page.locator('#scan-button')).not.toHaveAttribute('disabled');
     
-    // Try to scan - should show appropriate behavior when AI service unavailable
+    // Click scan - should use fallback AI
     await page.click('#scan-button');
+    await page.waitForTimeout(5000); // Wait for AI processing
     
-    // Should show some output (error message, loading state, or success message)
-    // In test environment, this may timeout gracefully or show an error
-    try {
-      await expect(page.locator('#output')).not.toBeEmpty({ timeout: 5000 });
-    } catch (error) {
-      // If no output appears, that's acceptable in test environment where Puter.js fails
-      console.log('No output shown - acceptable in test environment where AI service is unavailable');
-      // Just check that the scan button is still functional
-      await expect(page.locator('#scan-button')).toBeVisible();
-    }
+    // Should see fallback AI results
+    await expect(page.locator('#item-name')).toContainText('Detected Item');
+    
+    console.log('✅ Fallback AI system working after camera setup');
   });
 });

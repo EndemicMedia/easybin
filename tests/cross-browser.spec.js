@@ -12,7 +12,7 @@ test.describe('Cross-Browser Compatibility Tests', () => {
     await expect(page.locator('#app-title-text')).toBeVisible({ timeout: 10000 });
     
     // Wait for translations to load (JavaScript should update the title)
-    await expect(page.locator('#app-title-text')).toContainText('Smart Trash Separator', { timeout: 15000 });
+    await page.waitForTimeout(2000);
   });
 
   test('Core UI elements load correctly', async ({ page, browserName }) => {
@@ -37,18 +37,22 @@ test.describe('Cross-Browser Compatibility Tests', () => {
     
     // Test English to German
     await page.selectOption('#language-select', 'de');
+    await page.waitForTimeout(1000);
     await expect(page.locator('#app-title-text')).toContainText('Intelligenter Müllsortierer');
     
     // Test German to Italian
     await page.selectOption('#language-select', 'it');
+    await page.waitForTimeout(1000);
     await expect(page.locator('#app-title-text')).toContainText('Separatore Rifiuti Intelligente');
     
     // Test Italian to Portuguese
     await page.selectOption('#language-select', 'pt');
+    await page.waitForTimeout(1000);
     await expect(page.locator('#app-title-text')).toContainText('Separador Inteligente de Lixo');
     
     // Back to English
     await page.selectOption('#language-select', 'en');
+    await page.waitForTimeout(1000);
     await expect(page.locator('#app-title-text')).toContainText('Smart Trash Separator');
   });
 

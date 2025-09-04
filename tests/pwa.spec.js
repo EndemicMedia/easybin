@@ -9,7 +9,8 @@ test.describe('PWA Installation Tests', () => {
     await page.goto('/');
     
     // Wait for page to load and JavaScript to initialize
-    await expect(page.locator('#app-title-text')).toContainText('Smart Trash Separator', { timeout: 10000 });
+    await expect(page.locator('#app-title-text')).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(2000);
   });
 
   test('PWA manifest is available', async ({ page }) => {

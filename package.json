@@ -10,7 +10,12 @@
     "test:coverage": "jest --coverage --testPathIgnorePatterns='.*\\.spec\\.js$'",
     "test:all": "npm run test && npm run test:e2e",
     "serve": "npx serve -s . -p 5050",
-    "dev": "npx live-server --port=5050"
+    "dev": "npx live-server --port=5050",
+    "start": "node server.js",
+    "dev:cors": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.1",
