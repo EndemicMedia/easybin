@@ -15,8 +15,14 @@ EasyBin uses a multi-provider vision API system with intelligent fallback rotati
 
 ### Free Providers (Always Available)
 
-1. **Pollinations (Gemini)** - Primary free provider
-2. **Pollinations (Bidara)** - Secondary free provider
+1. **Puter.ai** - Primary provider (when available)
+   - Endpoint: `puter.ai.chat()`
+   - Geolocation: `puter.geo.get()`
+   - Loaded from: `https://js.puter.com/v2/`
+   - Fallback: Automatically falls back to Pollinations if unavailable
+
+2. **Pollinations (Gemini)** - Free fallback provider
+3. **Pollinations (Bidara)** - Secondary free provider
 
 ### Premium Providers (Require API Keys)
 
@@ -195,6 +201,32 @@ Providers are tried in this order:
 
 ---
 
+## Vision API Integration
+
+### Puter.ai API
+- **Endpoint**: `puter.ai.chat()`
+- **Purpose**: Primary AI vision API for waste image analysis
+- **Loading**: Dynamically loaded from `https://js.puter.com/v2/`
+- **Request Format**:
+  - Prompt with structured JSON response requirements
+  - Image data as base64-encoded string
+- **Response Format**: JSON object containing:
+  - `items` array with identification results
+  - Item properties: `itemName`, `primaryBin`, `primaryConfidence`, `secondaryBin`, `secondaryConfidence`, `material`, `reasoning`, `isContaminated`, `position`
+- **Error Handling**: Returns error object when identification fails
+- **Fallback**: Automatically falls back to Pollinations.AI if Puter.js is not available
+
+### Puter Geo API
+- **Endpoint**: `puter.geo.get()`
+- **Purpose**: Primary geolocation service for country detection
+- **Usage**: Detects user's country for region-specific waste sorting rules
+- **Fallback Chain**:
+  1. Puter Geo API (primary)
+  2. ipapi.co service (secondary)
+  3. Browser locale (final fallback)
+
+---
+
 ## Browser APIs Used
 
 ### Web Share API
@@ -238,9 +270,9 @@ Providers are tried in this order:
 
 ### Navigator API
 - **Geolocation:**
-  - Uses Puter Geo API as primary source
-  - Falls back to ipapi.co service
-  - Uses browser locale as final fallback
+  - Primary: Puter Geo API (`puter.geo.get()`)
+  - Secondary: ipapi.co service
+  - Final fallback: Browser locale
   - Detects country code for region-specific sorting rules
 - **Network Status:**
   - Monitors online/offline events
