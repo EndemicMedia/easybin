@@ -1,5 +1,8 @@
 # EasyBin UI Redesign Guide - MagicUI Implementation
 
+> **📋 Status:** Future Enhancement Reference  
+> **Note:** This redesign is not currently implemented. This document serves as a reference for future UI improvements using the MagicUI framework.
+
 ## Overview
 
 This guide outlines the complete redesign of EasyBin's UI using the MagicUI framework to create a modern, responsive, and engaging user experience while maintaining all existing functionality.
