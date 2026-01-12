@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>EasyBin: Smart Trash Separator</title>
-    
+
     <!-- Security Headers -->
     <!-- Note: CSP should be set via HTTP headers for production -->
-    <!-- Temporarily disabled CSP to debug Puter.js loading issue -->
-    <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://js.puter.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; font-src https://cdnjs.cloudflare.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://api.puter.com wss://puter.com; worker-src 'self'; manifest-src 'self';"> -->
-    <!-- Security headers now set via server.js - removing meta tags to avoid warnings -->
-    
+
     <!-- PWA Configuration -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#10b981">
@@ -18,209 +16,269 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="EasyBin">
-    
+
     <!-- External Resources with Integrity -->
-    <!-- Tailwind CSS v4 Play CDN (2025 Recommended) -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <!-- Tailwind CSS v4 Browser Build (Production) -->
+    <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome -->
-    <link rel="stylesheet" 
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
-          integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
-          crossorigin="anonymous" 
-          referrerpolicy="no-referrer"
-          onerror="console.warn('Font Awesome failed to load')">
-    <!-- Puter JS - Load dynamically to avoid CORS issues -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+        integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" onerror="console.warn('Font Awesome failed to load')">
+
+    <!-- Puter JS - Load with better error handling -->
     <script>
-        // Dynamic Puter.js loading
-        (function() {
+        // Dynamic Puter.js loading with fallback
+        (function () {
+            // Set default state
+            window.puterLoaded = false;
+
             const script = document.createElement('script');
             script.src = 'https://js.puter.com/v2/';
             script.crossOrigin = 'anonymous';
             script.async = true;
-            script.onload = function() {
+            script.onload = function () {
                 console.log('✅ Puter.js loaded successfully');
                 window.puterLoaded = true;
             };
-            script.onerror = function() {
-                console.warn('❌ Puter.js failed to load - will use fallback');
+            script.onerror = function () {
+                console.log('🔧 Puter.js not available - using fallback API');
                 window.puterLoaded = false;
             };
             document.head.appendChild(script);
         })();
     </script>
-    
+
     <!-- Custom CSS -->
     <link rel="stylesheet" href="styles.css">
-    
+    <link rel="stylesheet" href="magicui-extracted.css">
+
     <!-- Security Module -->
     <script src="security.js"></script>
 </head>
-<body class="h-screen flex flex-col bg-gradient-to-br from-gray-50 via-green-50 to-blue-50 font-sans">
-    <!-- Totem-style Container -->
-    <div class="flex-grow flex">
-        <!-- Left Panel: Controls -->
-        <div class="w-1/4 bg-green-700 p-4 flex flex-col justify-between">
-            <!-- Language Selector -->
-            <div class="mb-4">
-                <label id="language-label" for="language-select" class="block text-white mb-2">Language</label>
-                <select id="language-select" class="w-full p-2 rounded bg-white text-green-900 focus:ring-2 focus:ring-green-300" aria-label="Select language">
-                    <option value="en">English</option>
-                    <option value="de">Deutsch</option>
-                    <option value="it">Italiano</option>
-                    <option value="pt">Português</option>
-                </select>
-            </div>
 
-            <!-- Country Selector -->
-            <div class="mb-4">
-                <label id="country-label" for="country-select" class="block text-white mb-2">Region</label>
-                <select id="country-select" class="w-full p-2 rounded bg-white text-green-900 focus:ring-2 focus:ring-green-300" aria-label="Select region">
-                    <option value="us">United States</option>
-                    <option value="de">Germany</option>
-                    <option value="it">Italy</option>
-                    <option value="br">Brazil</option>
-                </select>
-            </div>
-
-            <!-- Network Status Indicator -->
-            <div id="network-status" class="mb-4 text-sm text-green-100 hidden">
-                <i class="fas fa-wifi text-green-300"></i>
-                <span>Online</span>
-            </div>
-
-            <!-- Instructions -->
-            <div class="mb-4 text-sm text-green-100">
-                <div id="instructions-text">
-                    <strong>How to use:</strong> Point your camera at an item and tap "Identify Item" to get sorting instructions.
-                </div>
-            </div>
-
-            <!-- History Button -->
-            <button id="history-button" class="w-full bg-white text-green-700 p-2 rounded mb-4 flex items-center justify-center hover:bg-green-50 focus:ring-2 focus:ring-green-300 transition-colors" aria-label="View scan history">
-                <i class="fas fa-history mr-2" aria-hidden="true"></i>
-                <span id="history-button-text">Scan History</span>
-            </button>
-
-            <!-- PWA Install Button -->
-            <button id="pwa-install-button" class="w-full bg-green-500 text-white p-2 rounded mb-4 flex items-center justify-center hover:bg-green-600 focus:ring-2 focus:ring-green-300 transition-colors hidden" aria-label="Install app">
-                <i class="fas fa-download mr-2" aria-hidden="true"></i>
-                <span>Install App</span>
-            </button>
-
-            <!-- Identify Item Button -->
-            <button id="scan-button" class="w-full modern-btn bg-white text-green-700 p-3 rounded-lg text-lg font-bold hover:bg-green-50 focus:ring-2 focus:ring-green-300 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed micro-bounce shadow-lg" aria-label="Take photo to identify item" disabled>
-                <i class="fas fa-camera mr-2" aria-hidden="true"></i>
-                <span id="scan-button-text">Identify Item</span>
-            </button>
-            
-            <!-- Quick Tips Button -->
-            <button id="tips-button" class="w-full bg-blue-500 text-white p-2 rounded mt-2 flex items-center justify-center hover:bg-blue-600 focus:ring-2 focus:ring-blue-300 transition-colors" aria-label="View quick tips">
-                <i class="fas fa-lightbulb mr-2" aria-hidden="true"></i>
-                <span id="tips-button-text">Quick Tips</span>
-            </button>
-
-            <!-- Enable Notifications Button -->
-            <button id="enable-notifications-button" class="w-full bg-purple-500 text-white p-2 rounded mt-2 flex items-center justify-center hover:bg-purple-600 focus:ring-2 focus:ring-purple-300 transition-colors" aria-label="Enable notifications">
-                <i class="fas fa-bell mr-2" aria-hidden="true"></i>
-                <span id="enable-notifications-button-text">Enable Notifications</span>
-            </button>
-        </div>
-
-        <!-- Right Panel: Camera & Results -->
-        <div class="w-3/4 flex">
-            <!-- Camera View -->
-            <div id="camera-container" class="w-1/2 bg-gradient-to-br from-gray-300 to-gray-400 relative overflow-hidden">
-                <video id="camera" playsinline muted class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105 hidden" aria-label="Camera view for item identification"></video>
-                <div id="camera-overlay" class="absolute inset-0 border-4 border-dashed border-green-400 pointer-events-none opacity-70 animate-pulse hidden" aria-hidden="true"></div>
-                
-                <!-- Open Camera Button -->
-                <div id="open-camera-container" class="absolute inset-0 flex items-center justify-center">
-                    <button id="open-camera-button" class="bg-green-500 text-white px-8 py-4 rounded-lg text-xl font-bold hover:bg-green-600 focus:ring-2 focus:ring-green-400 transition-colors duration-200 shadow-lg">
-                        <i class="fas fa-video mr-3" aria-hidden="true"></i>
-                        Open Camera
-                    </button>
-                </div>
-
-                <!-- Camera Loading State -->
-                <div id="camera-loading" class="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center hidden">
-                    <div class="text-center text-gray-600">
-                        <div class="modern-spinner mb-4"></div>
-                        <p class="font-medium">Initializing camera...</p>
-                        <p class="text-sm opacity-75 mt-2">Please allow camera access</p>
-                    </div>
-                </div>
-
-                <!-- Camera Permission Denied Help -->
-                <div id="camera-permission-denied" class="absolute inset-0 bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center hidden">
-                    <div class="text-center text-gray-600 max-w-sm mx-4">
-                        <div class="text-6xl mb-4">📱</div>
-                        <h3 class="text-xl font-bold mb-2">Camera Access Required</h3>
-                        <p class="text-gray-600 mb-4">EasyBin needs camera access to identify items for proper waste sorting.</p>
-                        <div class="bg-white rounded-lg p-4 mb-4 text-left">
-                            <h4 class="font-semibold mb-2">To enable camera:</h4>
-                            <ol class="text-sm text-gray-600 space-y-1">
-                                <li>1. Tap the camera icon in your browser's address bar</li>
-                                <li>2. Select "Allow" or "Always allow"</li>
-                                <li>3. Refresh this page</li>
-                            </ol>
+<body class="bg-gradient-to-br from-gray-50 via-white to-blue-50 font-sans md:overflow-hidden overflow-x-hidden">
+    <!-- Bento Grid Container -->
+    <div class="bento-grid">
+        <!-- Controls Card -->
+        <div
+            class="controls-card bento-card neon-gradient-card bg-white/10 backdrop-blur-lg text-gray-900 dark:text-white shadow-xl ring-1 ring-white/20 border border-white/30">
+            <div class="meteors-container"></div>
+            <div class="animated-grid-pattern"></div>
+            <div class="relative z-10 p-6 h-full flex flex-col">
+                <div class="blur-fade blur-fade-1 mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center">
+                            <i class="fas fa-cog text-2xl mr-3 text-gray-700 dark:text-white/90"></i>
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white">Controls</h3>
                         </div>
-                        <button id="retry-camera" class="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 focus:ring-2 focus:ring-green-400 transition-colors duration-200">
-                            <i class="fas fa-redo mr-2" aria-hidden="true"></i>
-                            Try Again
+                        <!-- Animated Theme Toggle moved here -->
+                        <button id="animated-theme-toggle"
+                            class="animated-theme-toggler bg-white/20 dark:bg-black/40 border-2 border-white/30 dark:border-white/20"
+                            aria-label="Toggle theme" title="Toggle dark/light mode">
+                            <i id="theme-toggle-icon" class="fas fa-sun theme-icon text-yellow-500 dark:text-blue-300"
+                                aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
-                
-                <!-- Scanning Animation -->
-                <div id="scanning-overlay" class="absolute inset-0 bg-black bg-opacity-30 hidden items-center justify-center backdrop-blur-sm">
-                    <div class="text-white text-center glass-card p-6 rounded-2xl">
-                        <div class="modern-spinner mb-4"></div>
-                        <p class="font-medium text-lg">Analyzing item...</p>
-                        <p class="text-sm opacity-90 mt-2">Using AI to identify waste type</p>
+
+                <!-- Language Selector -->
+                <div class="blur-fade blur-fade-2 mb-4">
+                    <label id="language-label" for="language-select"
+                        class="block text-gray-700 dark:text-white/90 mb-2 font-medium">Language</label>
+                    <select id="language-select"
+                        class="w-full p-3 rounded-lg glass-card bg-white/20 text-gray-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition-all duration-300"
+                        aria-label="Select language">
+                        <option value="en">English</option>
+                        <option value="de">Deutsch</option>
+                        <option value="it">Italiano</option>
+                        <option value="pt">Português</option>
+                    </select>
+                </div>
+
+                <!-- Region Selector -->
+                <div class="blur-fade blur-fade-3 mb-4">
+                    <label id="country-label" for="country-select"
+                        class="block text-gray-700 dark:text-white/90 mb-2 font-medium">Region</label>
+                    <select id="country-select"
+                        class="w-full p-3 rounded-lg glass-card bg-white/20 text-gray-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition-all duration-300"
+                        aria-label="Select region">
+                        <option value="us">United States</option>
+                        <option value="de">Germany</option>
+                        <option value="it">Italy</option>
+                        <option value="br">Brazil</option>
+                    </select>
+                </div>
+
+                <!-- Network Status Indicator -->
+                <div id="network-status"
+                    class="blur-fade blur-fade-4 mb-4 text-sm text-gray-700 dark:text-gray-300 hidden">
+                    <div class="glass-card p-2 inline-flex items-center">
+                        <i class="fas fa-wifi text-blue-500 mr-2"></i>
+                        <span>Online</span>
                     </div>
+                </div>
+
+
+                <!-- Instructions -->
+                <div class="blur-fade blur-fade-4 flex-grow">
+                    <div class="glass-card bg-white/10 p-4 mb-4 rounded-lg ring-1 ring-white/20">
+                        <div id="instructions-text" class="text-sm text-gray-700 dark:text-white/90 font-medium">
+                            <strong>How to use:</strong> Point your camera at an item and tap "Identify Item" to get
+                            sorting instructions.
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Camera Card -->
+        <div id="camera-container"
+            class="camera-card bento-card neon-gradient-card bg-gradient-to-br from-slate-800 to-slate-900 relative overflow-hidden cool-mode-container shadow-2xl ring-1 ring-white/10">
+            <div class="border-beam"></div>
+            <div class="warp-background"></div>
+            <div class="beam-container"></div>
+            <video id="camera" playsinline muted
+                class="absolute inset-0 w-full h-full object-cover transition-transform duration-300 hover:scale-105 hidden"
+                aria-label="Camera view for item identification"></video>
+            <div id="camera-overlay"
+                class="absolute inset-0 border-4 border-dashed border-green-400 pointer-events-none opacity-70 animate-pulse hidden"
+                aria-hidden="true"></div>
+
+            <!-- Identify Item Button (overlaid on camera) -->
+            <div id="identify-button-container"
+                class="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-20 hidden">
+                <button id="scan-button"
+                    class="shimmer-button px-8 py-4 text-xl font-bold shadow-2xl hover:scale-105 transition-all duration-300 focus:ring-2 focus:ring-white/50 focus:outline-none bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-full animate-fade-in"
+                    aria-label="Take photo to identify item">
+                    <i class="fas fa-camera mr-3" aria-hidden="true"></i>
+                    <span id="scan-button-text">Identify Item</span>
+                </button>
+            </div>
+
+            <!-- Open Camera Button -->
+            <div id="open-camera-container" class="absolute inset-0 flex items-center justify-center">
+                <button id="open-camera-button"
+                    class="shimmer-button px-8 py-4 text-xl font-bold shadow-lg hover:scale-105 transition-all duration-300 focus:ring-2 focus:ring-white/50 focus:outline-none">
+                    <i class="fas fa-video mr-3" aria-hidden="true"></i>
+                    Open Camera
+                </button>
+            </div>
+
+            <!-- Enhanced Camera Loading State -->
+            <div id="camera-loading"
+                class="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center hidden">
+                <div class="text-center text-white glass-card p-6 rounded-2xl">
+                    <!-- Orbiting Circles Animation -->
+                    <div class="orbiting-circles mb-4"></div>
+                    <p class="font-medium text-lg mb-2 hyper-text">Initializing camera...</p>
+                    <p class="text-sm opacity-75">Please allow camera access</p>
                 </div>
             </div>
 
-            <!-- Results View -->
-            <div id="result-card" class="w-1/2 bg-white overflow-auto shadow-inner">
+            <!-- Camera Permission Denied Help -->
+            <div id="camera-permission-denied"
+                class="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 flex items-center justify-center hidden">
+                <div class="text-center text-white max-w-sm mx-4 glass-card p-6 rounded-2xl">
+                    <div class="text-6xl mb-4">📱</div>
+                    <h3 class="text-xl font-bold mb-2">Camera Access Required</h3>
+                    <p class="text-gray-300 mb-4">EasyBin needs camera access to identify items for proper waste
+                        sorting.</p>
+                    <div class="glass-card rounded-lg p-4 mb-4 text-left">
+                        <h4 class="font-semibold mb-2">To enable camera:</h4>
+                        <ol class="text-sm text-gray-600 space-y-1">
+                            <li>1. Tap the camera icon in your browser's address bar</li>
+                            <li>2. Select "Allow" or "Always allow"</li>
+                            <li>3. Refresh this page</li>
+                        </ol>
+                    </div>
+                    <button id="retry-camera" class="shimmer-button px-6 py-3">
+                        <i class="fas fa-redo mr-2" aria-hidden="true"></i>
+                        Try Again
+                    </button>
+                </div>
+            </div>
+
+            <!-- Enhanced Scanning Animation with Circular Progress -->
+            <div id="scanning-overlay"
+                class="absolute inset-0 bg-black bg-opacity-30 hidden items-center justify-center backdrop-blur-sm">
+                <div class="text-white text-center glass-card p-6 rounded-2xl">
+                    <!-- Circular Progress Bar -->
+                    <div id="scan-progress" class="circular-progress mb-4 mx-auto"
+                        style="--bg-color: rgba(30, 41, 59, 0.8);">
+                        <div class="circular-progress-content">
+                            <div class="circular-progress-percentage">0%</div>
+                            <div class="circular-progress-label">Starting...</div>
+                        </div>
+                    </div>
+                    <p class="font-medium text-lg hyper-text" id="scan-status">Analyzing item...</p>
+                    <p class="text-sm opacity-90 mt-2">Using AI to identify waste type</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Card -->
+        <div
+            class="results-card bento-card glass-card bg-white/80 dark:bg-black/40 backdrop-blur-xl overflow-auto shadow-xl ring-1 ring-white/20">
+            <div class="magic-card h-full">
+                <div class="particles-container"></div>
+
                 <!-- Welcome State (Default View) -->
-                <div id="welcome-state" class="text-center py-12 floating">
-                    <div class="relative">
-                        <i class="fas fa-leaf text-6xl text-green-500 mb-4 floating" aria-hidden="true"></i>
-                        <div class="absolute top-0 left-1/2 transform -translate-x-1/2 w-20 h-20 bg-green-100 rounded-full opacity-50 animate-pulse"></div>
-                    </div>
-                    <h2 id="app-title-text" class="text-3xl font-bold gradient-text mb-3">EasyBin</h2>
-                    <p class="text-gray-600 mb-4">Smart waste sorting made simple</p>
-                    <p class="text-sm text-gray-500 mb-6">Point your camera at any item to get instant sorting instructions</p>
-                    <div class="flex justify-center space-x-4">
-                        <div class="stats-card inline-block">
-                            <div class="text-lg font-semibold text-green-600">🌱</div>
-                            <div class="text-xs text-gray-600">Eco-Friendly</div>
-                        </div>
-                        <div class="stats-card inline-block">
-                            <div class="text-lg font-semibold text-blue-600">⚡</div>
-                            <div class="text-xs text-gray-600">AI-Powered</div>
-                        </div>
-                        <div class="stats-card inline-block">
-                            <div class="text-lg font-semibold text-purple-600">📱</div>
-                            <div class="text-xs text-gray-600">Offline Ready</div>
+                <div id="welcome-state" class="text-center py-12 px-6 relative z-10">
+                    <div class="blur-fade blur-fade-1 relative mb-6">
+                        <i class="fas fa-leaf text-6xl text-green-500 mb-4 block" aria-hidden="true"></i>
+                        <div
+                            class="absolute top-0 left-1/2 transform -translate-x-1/2 w-20 h-20 bg-green-100 rounded-full opacity-50 animate-pulse">
                         </div>
                     </div>
-                    
+
+                    <div class="blur-fade blur-fade-2">
+                        <h2 id="app-title-text"
+                            class="text-4xl font-bold aurora-text mb-3 bg-gradient-to-r from-emerald-600 via-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            EasyBin
+                        </h2>
+                        <p class="text-gray-700 dark:text-gray-300 mb-4 text-lg font-medium">Smart waste sorting made
+                            simple</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mb-8">Point your camera at any item to get
+                            instant sorting instructions</p>
+                    </div>
+
+                    <!-- Environmental Impact Stats with Number Tickers -->
+                    <div class="blur-fade blur-fade-3 flex justify-center space-x-4 mb-8">
+                        <div
+                            class="bg-white/30 dark:bg-black/40 border border-white/40 dark:border-white/30 backdrop-blur-md rounded-lg p-3 transition-all duration-200 hover:-translate-y-1">
+                            <div class="text-2xl font-bold text-green-600 number-ticker" id="items-sorted">0</div>
+                            <div class="text-xs text-gray-600 dark:text-gray-300 mt-1">Items Sorted</div>
+                        </div>
+                        <div
+                            class="bg-white/30 dark:bg-black/40 border border-white/40 dark:border-white/30 backdrop-blur-md rounded-lg p-3 transition-all duration-200 hover:-translate-y-1">
+                            <div class="text-2xl font-bold text-blue-600 number-ticker" id="co2-saved">0.0</div>
+                            <div class="text-xs text-gray-600 dark:text-gray-300 mt-1">kg CO₂ Saved</div>
+                        </div>
+                        <div
+                            class="bg-white/30 dark:bg-black/40 border border-white/40 dark:border-white/30 backdrop-blur-md rounded-lg p-3 transition-all duration-200 hover:-translate-y-1">
+                            <div class="text-2xl font-bold text-purple-600 number-ticker" id="accuracy-rate">95</div>
+                            <div class="text-xs text-gray-600 dark:text-gray-300 mt-1">% Accuracy</div>
+                        </div>
+                    </div>
+
                     <!-- Recent History Section -->
-                    <div id="history" class="mt-8 px-4">
-                        <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center">
+                    <div class="blur-fade blur-fade-4 mt-8 px-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4 flex items-center justify-center">
                             <i class="fas fa-history mr-2 text-blue-500" aria-hidden="true"></i>
                             Recent Scans
                         </h3>
-                        <div id="recent-history-list" class="space-y-2">
-                            <div class="text-center text-gray-500 text-sm py-4">
-                                <i class="fas fa-camera text-gray-300 text-2xl mb-2 block" aria-hidden="true"></i>
+                        <div id="recent-history-list" class="animated-list space-y-2">
+                            <div
+                                class="text-center text-sm py-4 glass-card bg-white/35 dark:bg-black/40 border border-white/40 dark:border-white/30 text-gray-800 dark:text-gray-200">
+                                <i class="fas fa-camera text-gray-600 dark:text-gray-400 text-2xl mb-2 block"
+                                    aria-hidden="true"></i>
                                 No scans yet. Start by identifying an item!
                             </div>
                         </div>
                         <div class="text-center mt-4">
-                            <button id="view-all-history" class="text-blue-600 hover:text-blue-800 text-sm font-medium transition-colors">
+                            <button id="view-all-history"
+                                class="text-sm font-bold transition-colors glass-card bg-white/35 dark:bg-black/40 border border-white/40 dark:border-white/30 text-blue-800 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 px-4 py-2 rounded-lg">
                                 <i class="fas fa-list mr-1" aria-hidden="true"></i>
                                 View All History
                             </button>
@@ -228,113 +286,167 @@
                     </div>
                 </div>
 
-                <!-- Scan Results (Hidden by Default) -->
+                <!-- Enhanced Scan Results (Hidden by Default) -->
                 <div id="result-content" class="p-6 hidden" role="region" aria-label="Identification results">
-                    <div id="bin-header" class="text-center text-2xl font-bold mb-4 rounded-2xl transition-all duration-500"></div>
+                    <div id="bin-header"
+                        class="text-center text-2xl font-bold mb-4 rounded-2xl transition-all duration-500 morphing-text">
+                    </div>
                     <div class="item-details">
-                        <div id="item-name" class="text-xl mb-2 font-semibold"></div>
-                        <div id="bin-instructions" class="glass-card p-4 rounded-lg mb-3 border-l-4 border-green-500"></div>
+                        <div id="item-name" class="text-xl mb-2 font-semibold hyper-text"></div>
+                        <div id="bin-instructions"
+                            class="glass-card p-4 rounded-lg mb-3 border-l-4 border-green-500 sparkles-text"></div>
                         <hr id="details-hr" class="my-4 border-gray-200" style="display: none;">
                         <div id="item-description" class="text-gray-600 leading-relaxed"></div>
+                        <!-- Image Preview with Lens Component -->
+                        <div id="captured-image-container" class="mt-4 text-center hidden">
+                            <div class="lens-container inline-block">
+                                <img id="captured-image" src="" alt="Captured item"
+                                    class="max-w-full max-h-48 rounded-lg shadow-lg">
+                                <div class="lens-zoom"></div>
+                            </div>
+                            <p class="text-sm text-gray-500 mt-2">Click image to zoom</p>
+                            <button id="settings-button" class="settings-button" aria-label="Settings">
+                                <svg class="settings-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                                    viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                    <path
+                                        d="M12 1v6m0 6v6m5.66-13.66l-4.24 4.24m-2.82 2.82l-4.24 4.24m13.66 1.42l-4.24-4.24m-2.82-2.82l-4.24-4.24">
+                                    </path>
+                                </svg>
+                            </button>
+                            <button id="api-keys-button" class="settings-button" aria-label="API Keys"
+                                title="Configure API Keys">
+                                🔑
+                            </button>
+                        </div>
                     </div>
                     <div id="country-note" style="display: none;"></div>
-                    
-                    <!-- Retake Photo Button -->
-                    <div class="mt-6 text-center">
-                        <button id="retake-button" class="bg-gray-500 text-white px-6 py-3 rounded-lg hover:bg-gray-600 focus:ring-2 focus:ring-gray-400 transition-colors duration-200 flex items-center justify-center mx-auto" aria-label="Take another photo">
+
+                    <!-- Action Buttons -->
+                    <div class="mt-6 space-y-4">
+                        <button id="retake-button"
+                            class="w-full bg-white/40 dark:bg-black/40 border border-white/30 dark:border-white/30 text-gray-800 dark:text-gray-200 p-3 flex items-center justify-center rounded-lg backdrop-blur-sm hover:bg-white/50 dark:hover:bg-black/50 transition-all duration-200"
+                            aria-label="Take another photo">
                             <i class="fas fa-camera mr-2" aria-hidden="true"></i>
                             <span id="retake-button-text">Take Another Photo</span>
                         </button>
-                    </div>
-                    
-                    <!-- Share Results Button -->
-                    <div class="mt-4 text-center">
-                        <button id="share-button" class="bg-blue-500 text-white px-6 py-3 rounded-lg hover:bg-blue-600 focus:ring-2 focus:ring-blue-400 transition-colors duration-200 flex items-center justify-center mx-auto" aria-label="Share results">
+
+                        <button id="share-button"
+                            class="w-full bg-blue-500 hover:bg-blue-600 text-white p-3 flex items-center justify-center rounded-lg backdrop-blur-sm transition-all duration-200"
+                            aria-label="Share results">
                             <i class="fas fa-share-alt mr-2" aria-hidden="true"></i>
                             <span id="share-button-text">Share Results</span>
                         </button>
-                    </div>
-                    
-                    <!-- Save to Photos Button -->
-                    <div class="mt-4 text-center">
-                        <button id="save-button" class="bg-green-500 text-white px-6 py-3 rounded-lg hover:bg-green-600 focus:ring-2 focus:ring-green-400 transition-colors duration-200 flex items-center justify-center mx-auto" aria-label="Save results to photos">
+
+                        <button id="save-button"
+                            class="w-full bg-green-500 hover:bg-green-600 text-white p-3 flex items-center justify-center rounded-lg backdrop-blur-sm transition-all duration-200"
+                            aria-label="Save results to photos">
                             <i class="fas fa-download mr-2" aria-hidden="true"></i>
                             <span id="save-button-text">Save to Photos</span>
                         </button>
                     </div>
                 </div>
-                
+
                 <!-- Status and Loading State -->
-                <div id="output" class="min-h-[20px]" aria-live="polite">
-                    <div id="app-status" class="text-center text-sm text-gray-500 py-2">
-                        <i class="fas fa-leaf text-green-500 mr-1" aria-hidden="true"></i>
+                <div id="output" class="absolute bottom-4 left-1/2 transform -translate-x-1/2" aria-live="polite">
+                    <div id="app-status"
+                        class="text-center text-sm text-gray-800 font-medium py-2 glass-card px-4 rounded-full">
+                        <i class="fas fa-leaf text-green-600 mr-1" aria-hidden="true"></i>
                         Ready to scan
                     </div>
                 </div>
-                
-                <!-- Quick Tips Overlay -->
-                <div id="quick-tips-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-                    <div class="bg-white rounded-lg max-w-md w-full mx-4 p-6">
-                        <div class="flex items-center justify-between mb-4">
-                            <h3 class="text-lg font-semibold text-gray-900">Quick Tips</h3>
-                            <button id="close-tips" class="text-gray-400 hover:text-gray-600">
-                                <i class="fas fa-times" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                        <div id="tips-content" class="space-y-4">
-                            <div class="tip-item p-4 bg-gray-50 rounded-lg">
-                                <h4 class="font-medium text-gray-900 mb-2">📸 Better Photos</h4>
-                                <p class="text-gray-600 text-sm">Ensure good lighting and focus on a single item for best results.</p>
-                            </div>
-                            <div class="tip-item p-4 bg-gray-50 rounded-lg">
-                                <h4 class="font-medium text-gray-900 mb-2">♻️ Recycling Rules</h4>
-                                <p class="text-gray-600 text-sm">Clean containers have higher recycling rates. Rinse food residue when possible.</p>
-                            </div>
-                            <div class="tip-item p-4 bg-gray-50 rounded-lg">
-                                <h4 class="font-medium text-gray-900 mb-2">🌍 Regional Differences</h4>
-                                <p class="text-gray-600 text-sm">Recycling rules vary by location. Check your local guidelines for specifics.</p>
-                            </div>
-                        </div>
-                        <div class="mt-6 text-center">
-                            <button id="next-tip" class="bg-green-500 text-white px-6 py-2 rounded hover:bg-green-600 transition-colors">
-                                Next Tip
-                            </button>
-                        </div>
-                    </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions Card -->
+        <div
+            class="quick-actions-card bento-card bg-gradient-to-br from-gray-50/90 to-gray-100/90 dark:from-gray-800/90 dark:to-gray-900/90 shadow-lg ring-1 ring-gray-200/50 dark:ring-gray-700/50">
+            <div class="p-6 h-full flex flex-col justify-center space-y-3">
+                <div class="blur-fade blur-fade-1">
+                    <h3 class="text-lg font-bold text-gray-800 dark:text-gray-200 mb-4 flex items-center">
+                        <i class="fas fa-bolt mr-2 text-yellow-500"></i>
+                        Quick Actions
+                    </h3>
                 </div>
+
+                <button id="history-button"
+                    class="bg-blue-500 hover:bg-blue-600 hover:scale-105 text-white p-3 flex items-center justify-center rounded-lg backdrop-blur-sm transition-all duration-300 blur-fade blur-fade-2 shadow-md focus:ring-2 focus:ring-blue-500/50 focus:outline-none">
+                    <i class="fas fa-history mr-2" aria-hidden="true"></i>
+                    <span id="history-button-text">Scan History</span>
+                </button>
+
+                <button id="tips-button"
+                    class="bg-purple-500 hover:bg-purple-600 hover:scale-105 text-white p-3 flex items-center justify-center rounded-lg backdrop-blur-sm transition-all duration-300 blur-fade blur-fade-3 shadow-md focus:ring-2 focus:ring-purple-500/50 focus:outline-none">
+                    <i class="fas fa-lightbulb mr-2" aria-hidden="true"></i>
+                    <span id="tips-button-text">Quick Tips</span>
+                </button>
+
+                <button id="pwa-install-button"
+                    class="bg-green-500 hover:bg-green-600 text-white p-3 flex items-center justify-center rounded-lg backdrop-blur-sm transition-all duration-200 hidden blur-fade blur-fade-4"
+                    aria-label="Install app">
+                    <i class="fas fa-download mr-2" aria-hidden="true"></i>
+                    <span>Install App</span>
+                </button>
+
+                <button id="enable-notifications-button"
+                    class="bg-orange-500 hover:bg-orange-600 text-white p-3 flex items-center justify-center rounded-lg backdrop-blur-sm transition-all duration-200 blur-fade blur-fade-4"
+                    aria-label="Enable notifications">
+                    <i class="fas fa-bell mr-2" aria-hidden="true"></i>
+                    <span id="enable-notifications-button-text">Enable Notifications</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Primary Action Card -->
+        <div
+            class="primary-action-card bento-card neon-gradient-card bg-white/10 backdrop-blur-lg text-gray-900 dark:text-white cool-mode-container shadow-2xl ring-1 ring-white/20">
+            <div class="particles-container"></div>
+            <div class="flickering-grid"></div>
+            <div class="relative z-10 flex items-center justify-center h-full p-6">
+                <button id="scan-button-old"
+                    class="rainbow-button w-full h-16 text-xl font-bold shadow-2xl hover:scale-105 transition-all duration-300 focus:ring-2 focus:ring-white/50 focus:outline-none"
+                    aria-label="Take photo to identify item" disabled>
+                    <i class="fas fa-camera mr-3" aria-hidden="true"></i>
+                    <span id="scan-button-text-old">Identify Item</span>
+                </button>
             </div>
         </div>
     </div>
 
     <!-- History Modal -->
     <div id="history-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-        <div class="bg-white rounded-lg max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+        <div class="magic-card glass-card rounded-2xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
             <div class="p-6 border-b border-gray-200">
                 <div class="flex items-center justify-between">
                     <h3 id="history-modal-title" class="text-lg font-semibold text-gray-900">Scan History</h3>
-                    <button onclick="document.getElementById('history-modal').classList.add('hidden'); document.getElementById('history-modal').classList.remove('flex')" class="text-gray-400 hover:text-gray-600">
+                    <button
+                        onclick="document.getElementById('history-modal').classList.add('hidden'); document.getElementById('history-modal').classList.remove('flex')"
+                        class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100">
                         <i class="fas fa-times" aria-hidden="true"></i>
                     </button>
                 </div>
             </div>
             <div id="history-modal-body" class="flex-1 overflow-y-auto p-6">
                 <div id="history-empty-state" class="text-center py-12">
-                    <div class="relative inline-block">
+                    <div class="relative inline-block mb-6">
                         <i class="fas fa-history text-6xl text-gray-300 mb-4" aria-hidden="true"></i>
-                        <div class="absolute top-0 left-1/2 transform -translate-x-1/2 w-20 h-20 bg-gray-100 rounded-full opacity-50"></div>
+                        <div
+                            class="absolute top-0 left-1/2 transform -translate-x-1/2 w-20 h-20 bg-gray-100 rounded-full opacity-50">
+                        </div>
                     </div>
                     <h3 class="text-xl font-semibold text-gray-700 mb-2">No scans yet</h3>
                     <p class="text-gray-500 mb-4">Start scanning items to build your waste sorting history</p>
                     <div class="flex justify-center space-x-4 text-sm">
-                        <div class="flex items-center text-gray-400">
+                        <div class="flex items-center text-gray-700 font-medium glass-card px-3 py-2 rounded-lg">
                             <i class="fas fa-camera mr-1" aria-hidden="true"></i>
                             <span>Take a photo</span>
                         </div>
-                        <div class="flex items-center text-gray-400">
+                        <div class="flex items-center text-gray-700 font-medium glass-card px-3 py-2 rounded-lg">
                             <i class="fas fa-recycle mr-1" aria-hidden="true"></i>
                             <span>Get instructions</span>
                         </div>
-                        <div class="flex items-center text-gray-400">
+                        <div class="flex items-center text-gray-700 font-medium glass-card px-3 py-2 rounded-lg">
                             <i class="fas fa-history mr-1" aria-hidden="true"></i>
                             <span>Track progress</span>
                         </div>
@@ -347,31 +459,75 @@
         </div>
     </div>
 
+    <!-- Quick Tips Overlay -->
+    <div id="quick-tips-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="magic-card glass-card rounded-2xl max-w-md w-full mx-4 p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-900">Quick Tips</h3>
+                <button id="close-tips" class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100">
+                    <i class="fas fa-times" aria-hidden="true"></i>
+                </button>
+            </div>
+            <div id="tips-content" class="space-y-4">
+                <div class="tip-item glass-card p-4 rounded-lg">
+                    <h4 class="font-medium text-gray-900 mb-2">📸 Better Photos</h4>
+                    <p class="text-gray-600 text-sm">Ensure good lighting and focus on a single item for best results.
+                    </p>
+                </div>
+                <div class="tip-item glass-card p-4 rounded-lg">
+                    <h4 class="font-medium text-gray-900 mb-2">♻️ Recycling Rules</h4>
+                    <p class="text-gray-600 text-sm">Clean containers have higher recycling rates. Rinse food residue
+                        when possible.</p>
+                </div>
+                <div class="tip-item glass-card p-4 rounded-lg">
+                    <h4 class="font-medium text-gray-900 mb-2">🌍 Regional Differences</h4>
+                    <p class="text-gray-600 text-sm">Recycling rules vary by location. Check your local guidelines for
+                        specifics.</p>
+                </div>
+                <!-- Scratch to Reveal Environmental Tip -->
+                <div class="scratch-to-reveal h-32">
+                    <div class="scratch-surface">
+                        <div class="flex items-center justify-center h-full text-white">
+                            <i class="fas fa-hand-pointer text-2xl mr-2"></i>
+                            <span class="font-medium">Scratch to reveal eco-tip!</span>
+                        </div>
+                    </div>
+                    <div class="scratch-content">
+                        <h4 class="font-bold text-white mb-2">🌿 Eco Bonus Tip!</h4>
+                        <p class="text-white text-sm">Every correctly sorted item saves approximately 0.2kg CO₂! You're
+                            making a real environmental impact.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-6 text-center">
+                <button id="next-tip" class="shimmer-button px-6 py-2">
+                    Next Tip
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Footer -->
-    <footer class="bg-gray-800 text-white text-center py-4 text-sm">
+    <footer
+        class="fixed bottom-0 left-0 right-0 bg-gray-800/90 backdrop-blur-sm text-white text-center py-2 text-xs z-40">
         <div class="container mx-auto px-4">
-            <div class="flex flex-col sm:flex-row justify-between items-center space-y-2 sm:space-y-0">
-                <div class="flex items-center space-x-4">
+            <div class="flex flex-col sm:flex-row justify-between items-center space-y-1 sm:space-y-0">
+                <div class="flex items-center space-x-2">
                     <span>&copy; 2025 EasyBin</span>
                     <span class="text-gray-400">|</span>
                     <span id="footer-tagline">Smart waste sorting made simple</span>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <button id="privacy-link" class="text-gray-300 hover:text-white transition-colors">
+                <div class="flex items-center space-x-2">
+                    <button id="privacy-link" class="text-gray-300 hover:text-white transition-colors px-2">
                         <i class="fas fa-shield-alt mr-1" aria-hidden="true"></i>
                         <span>Privacy</span>
                     </button>
                     <span class="text-gray-400">|</span>
                     <div id="app-version" class="text-gray-400">
                         <i class="fas fa-code-branch mr-1" aria-hidden="true"></i>
-                        <span>v1.0.0</span>
+                        <span>v2.0.0</span>
                     </div>
                 </div>
-            </div>
-            <!-- Network Status Indicator in Footer -->
-            <div id="footer-network-status" class="mt-2 text-xs text-gray-400 hidden">
-                <i class="fas fa-wifi mr-1" aria-hidden="true"></i>
-                <span id="network-status-text">Online</span>
             </div>
         </div>
     </footer>
@@ -381,9 +537,18 @@
     <script src="analytics.js"></script>
     <script src="translations.js"></script>
     <script src="binStyles.js"></script>
+    <script src="image-compression.js"></script>
+
+    <!-- Multi-Provider Vision API -->
+    <script src="ai-provider-adapters.js"></script>
+    <script src="ai-vision-client.js"></script>
+    <script src="api-key-manager.js"></script>
+
     <script src="app.js"></script>
     <script src="modern-features.js"></script>
-    
+    <script src="bento-integration.js"></script>
+    <script src="update-app-for-bento.js"></script>
+
     <!-- PWA Service Worker Registration -->
     <script>
         let deferredPrompt;
@@ -397,10 +562,16 @@
 
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
+                // Skip service worker in development to avoid errors
+                if (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost') {
+                    console.log('🔧 Development mode: Skipping Service Worker registration');
+                    return;
+                }
+
                 navigator.serviceWorker.register('./sw.js')
                     .then(registration => {
-                        console.log('SW registered: ', registration);
-                        
+                        console.log('✅ Service Worker registered successfully', registration);
+
                         // Listen for updates
                         registration.addEventListener('updatefound', () => {
                             const newWorker = registration.installing;
@@ -413,7 +584,7 @@
                         });
                     })
                     .catch(registrationError => {
-                        console.log('SW registration failed: ', registrationError);
+                        console.log('🔧 Service Worker registration skipped:', registrationError.message);
                     });
             });
         }
@@ -423,7 +594,7 @@
             console.log('beforeinstallprompt fired');
             e.preventDefault();
             deferredPrompt = e;
-            
+
             // Show install button if not already installed
             if (!isAppInstalled) {
                 const installBtn = document.getElementById('pwa-install-button');
@@ -431,7 +602,7 @@
                     installBtn.classList.remove('hidden');
                     installBtn.addEventListener('click', installApp);
                 }
-                
+
                 // Show bottom banner after delay (optional)
                 setTimeout(showInstallBanner, 10000);
             }
@@ -442,7 +613,7 @@
             console.log('App was installed');
             isAppInstalled = true;
             hidePWAPrompts();
-            
+
             // Track installation
             if (window.easyBinAnalytics) {
                 window.easyBinAnalytics.trackEvent('pwa_installed', 'engagement');
@@ -468,13 +639,13 @@
         // Show install banner
         function showInstallBanner() {
             if (isAppInstalled || !deferredPrompt) return;
-            
+
             const existingBanner = document.getElementById('install-banner');
             if (existingBanner) return; // Don't show multiple banners
-            
+
             const installBanner = document.createElement('div');
             installBanner.id = 'install-banner';
-            installBanner.className = 'fixed bottom-4 left-4 right-4 bg-green-600 text-white p-4 rounded-lg shadow-lg z-50 animate-slide-up';
+            installBanner.className = 'fixed bottom-16 left-4 right-4 glass-card text-white p-4 rounded-lg shadow-lg z-50 bg-green-600/90 backdrop-blur-sm animate-bounce';
             installBanner.innerHTML = `
                 <div class="flex items-center justify-between">
                     <div class="flex-1">
@@ -488,26 +659,26 @@
                         <button id="banner-install-btn" class="bg-white text-green-600 px-4 py-2 rounded font-medium hover:bg-gray-100 transition-colors">
                             Install
                         </button>
-                        <button id="banner-dismiss" class="text-white hover:text-gray-200 transition-colors" aria-label="Dismiss">
+                        <button id="banner-dismiss" class="text-white hover:text-gray-200 transition-colors p-2" aria-label="Dismiss">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                 </div>
             `;
             document.body.appendChild(installBanner);
-            
+
             // Add event listeners
             document.getElementById('banner-install-btn').addEventListener('click', () => {
                 installApp();
                 installBanner.remove();
             });
-            
+
             document.getElementById('banner-dismiss').addEventListener('click', () => {
                 installBanner.remove();
                 // Don't show banner again for this session
                 sessionStorage.setItem('installBannerDismissed', 'true');
             });
-            
+
             // Auto-hide after 15 seconds
             setTimeout(() => {
                 if (installBanner.parentNode) {
@@ -520,7 +691,7 @@
         function hidePWAPrompts() {
             const installBtn = document.getElementById('pwa-install-button');
             const banner = document.getElementById('install-banner');
-            
+
             if (installBtn) installBtn.classList.add('hidden');
             if (banner) banner.remove();
         }
@@ -528,7 +699,7 @@
         // Show update available notification
         function showUpdateAvailable() {
             const updateNotification = document.createElement('div');
-            updateNotification.className = 'fixed top-4 right-4 bg-blue-600 text-white p-4 rounded-lg shadow-lg z-50';
+            updateNotification.className = 'fixed top-4 right-4 glass-card bg-blue-600/90 text-white p-4 rounded-lg shadow-lg z-50';
             updateNotification.innerHTML = `
                 <div class="flex items-center justify-between">
                     <div>
@@ -541,7 +712,7 @@
                 </div>
             `;
             document.body.appendChild(updateNotification);
-            
+
             document.getElementById('reload-btn').addEventListener('click', () => {
                 window.location.reload();
             });
@@ -559,4 +730,5 @@
         }
     </script>
 </body>
+
 </html>

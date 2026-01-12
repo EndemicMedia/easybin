@@ -24,9 +24,9 @@ app.use((req, res, next) => {
     res.setHeader('X-XSS-Protection', '1; mode=block');
     
     // Relaxed CSP to allow external resources
-    res.setHeader('Content-Security-Policy', 
+    res.setHeader('Content-Security-Policy',
         "default-src 'self'; " +
-        "script-src 'self' 'unsafe-inline' https://js.puter.com https://api.puter.com https://cdn.jsdelivr.net; " +
+        "script-src 'self' 'unsafe-inline' https://js.puter.com https://api.puter.com https://cdn.jsdelivr.net https://cdn.tailwindcss.com; " +
         "connect-src 'self' https://api.puter.com https://js.puter.com https://ipapi.co https://text.pollinations.ai ws: wss:; " +
         "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
         "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; " +

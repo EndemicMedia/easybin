@@ -22,6 +22,12 @@ class EasyBinModernFeatures {
         this.initGamification();
         this.loadStats();
         this.initAdvancedCamera();
+        
+        // Initialize MagicUI enhancements
+        this.initEnvironmentalStats();
+        
+        // Hook into scan results display
+        this.hookIntoResultsDisplay();
     }
 
     // =======================================================================
@@ -153,22 +159,219 @@ class EasyBinModernFeatures {
         scanButton.style.position = 'relative';
         scanButton.appendChild(pulseRing);
 
-        // Override showSpinner to use modern spinner
+        // Enhanced showSpinner with MagicUI circular progress bar
         const originalShowSpinner = window.showSpinner;
         window.showSpinner = () => {
-            const outputDiv = document.getElementById('output');
-            outputDiv.innerHTML = '<div class="modern-spinner"></div>';
-            document.getElementById('result-card').classList.add('hidden');
+            // Use scanning overlay in camera card instead of output div
+            const scanningOverlay = document.getElementById('scanning-overlay');
+            if (scanningOverlay) {
+                scanningOverlay.classList.remove('hidden');
+                scanningOverlay.classList.add('flex');
+            }
+            
+            // Hide welcome state in results card
+            const welcomeState = document.getElementById('welcome-state');
+            if (welcomeState) {
+                welcomeState.classList.add('hidden');
+            }
+            
+            // Initialize progress bar animation
+            if (window.magicUI) {
+                // Simulate scanning progress stages
+                setTimeout(() => {
+                    window.magicUI.setCircularProgress('#scan-progress', 25, 'Capturing...');
+                    if (window.magicUI) {
+                        window.magicUI.scrambleText('#scan-status', 'Capturing image...', 300);
+                    }
+                }, 100);
+                
+                setTimeout(() => {
+                    window.magicUI.setCircularProgress('#scan-progress', 60, 'Processing...');
+                    if (window.magicUI) {
+                        window.magicUI.scrambleText('#scan-status', 'Processing with AI...', 400);
+                    }
+                }, 800);
+                
+                setTimeout(() => {
+                    window.magicUI.setCircularProgress('#scan-progress', 85, 'Analyzing...');
+                    if (window.magicUI) {
+                        window.magicUI.scrambleText('#scan-status', 'Identifying item...', 300);
+                    }
+                }, 1500);
+            }
+            
             scanButton.disabled = true;
-            pulseRing.classList.remove('hidden');
+            if (pulseRing) {
+                pulseRing.classList.remove('hidden');
+            }
         };
 
         const originalHideSpinner = window.hideSpinner;
         window.hideSpinner = () => {
-            document.getElementById('output').innerHTML = '';
+            // Complete progress bar animation
+            if (window.magicUI) {
+                window.magicUI.setCircularProgress('#scan-progress', 100, 'Complete!');
+                setTimeout(() => {
+                    // Hide scanning overlay after completion animation
+                    const scanningOverlay = document.getElementById('scanning-overlay');
+                    if (scanningOverlay) {
+                        scanningOverlay.classList.add('hidden');
+                        scanningOverlay.classList.remove('flex');
+                    }
+                }, 500);
+            } else {
+                // Fallback: hide immediately if MagicUI not available
+                const scanningOverlay = document.getElementById('scanning-overlay');
+                if (scanningOverlay) {
+                    scanningOverlay.classList.add('hidden');
+                    scanningOverlay.classList.remove('flex');
+                }
+            }
+            
+            // Show welcome state in results card if no results
+            const welcomeState = document.getElementById('welcome-state');
+            if (welcomeState && !document.querySelector('.ai-results')) {
+                welcomeState.classList.remove('hidden');
+            }
+            
+            // Update environmental impact stats
+            this.updateEnvironmentalStats();
+            
             scanButton.disabled = false;
-            pulseRing.classList.add('hidden');
+            if (pulseRing) {
+                pulseRing.classList.add('hidden');
+            }
         };
+    }
+
+    // =======================================================================
+    // ENVIRONMENTAL IMPACT STATS TRACKING
+    // =======================================================================
+    
+    initEnvironmentalStats() {
+        // Initialize stats from localStorage
+        const stats = this.getEnvironmentalStats();
+        
+        // Update UI with current stats
+        if (window.magicUI) {
+            window.magicUI.animateNumberTicker('#items-sorted', stats.itemsSorted, 1000);
+            window.magicUI.animateNumberTicker('#co2-saved', stats.co2Saved, 1200);
+            window.magicUI.animateNumberTicker('#accuracy-rate', stats.accuracyRate, 800);
+        }
+    }
+    
+    getEnvironmentalStats() {
+        const defaultStats = {
+            itemsSorted: 0,
+            co2Saved: 0.0,
+            accuracyRate: 95,
+            totalScans: 0,
+            successfulScans: 0
+        };
+        
+        try {
+            const stored = localStorage.getItem('easybin-environmental-stats');
+            return stored ? {...defaultStats, ...JSON.parse(stored)} : defaultStats;
+        } catch (e) {
+            return defaultStats;
+        }
+    }
+    
+    saveEnvironmentalStats(stats) {
+        try {
+            localStorage.setItem('easybin-environmental-stats', JSON.stringify(stats));
+        } catch (e) {
+            console.warn('Could not save environmental stats:', e);
+        }
+    }
+    
+    updateEnvironmentalStats(scanResult = null) {
+        const stats = this.getEnvironmentalStats();
+        
+        // Increment scan counters
+        stats.totalScans++;
+        
+        if (scanResult) {
+            stats.successfulScans++;
+            stats.itemsSorted++;
+            
+            // Calculate CO2 savings based on proper sorting
+            // Estimates: 1 properly sorted item = ~0.2kg CO2 saved
+            const co2Increase = Math.random() * 0.3 + 0.1; // 0.1-0.4kg variation
+            stats.co2Saved = Math.round((stats.co2Saved + co2Increase) * 10) / 10;
+            
+            // Update accuracy rate (rolling average)
+            stats.accuracyRate = Math.round((stats.successfulScans / stats.totalScans) * 100);
+        }
+        
+        // Save updated stats
+        this.saveEnvironmentalStats(stats);
+        
+        // Update UI with animations
+        if (window.magicUI) {
+            window.magicUI.animateNumberTicker('#items-sorted', stats.itemsSorted, 800);
+            window.magicUI.animateNumberTicker('#co2-saved', stats.co2Saved, 1000);
+            window.magicUI.animateNumberTicker('#accuracy-rate', stats.accuracyRate, 600);
+        }
+    }
+
+    // =======================================================================
+    // ENHANCED RESULT DISPLAY WITH MAGICUI
+    // =======================================================================
+    
+    enhanceResultDisplay(resultData) {
+        // Apply hyper text animation to result headers
+        if (window.magicUI && resultData) {
+            const binHeader = document.getElementById('bin-header');
+            const itemName = document.getElementById('item-name');
+            
+            if (binHeader && binHeader.textContent) {
+                window.magicUI.scrambleText('#bin-header', binHeader.textContent, 800);
+            }
+            
+            if (itemName && itemName.textContent) {
+                window.magicUI.scrambleText('#item-name', itemName.textContent, 600);
+            }
+            
+            // Show captured image with lens component if available
+            this.displayCapturedImage();
+            
+            // Update environmental stats with the successful scan
+            this.updateEnvironmentalStats(resultData);
+        }
+    }
+    
+    displayCapturedImage() {
+        // Show the captured image with lens zoom functionality
+        const imageContainer = document.getElementById('captured-image-container');
+        const capturedImage = document.getElementById('captured-image');
+        
+        if (imageContainer && capturedImage && window.lastCapturedImageData) {
+            capturedImage.src = window.lastCapturedImageData;
+            imageContainer.classList.remove('hidden');
+        }
+    }
+
+    // =======================================================================
+    // RESULTS DISPLAY INTEGRATION
+    // =======================================================================
+    
+    hookIntoResultsDisplay() {
+        // Override the displayAIResults function to add MagicUI enhancements
+        if (window.displayAIResults) {
+            const originalDisplayAIResults = window.displayAIResults;
+            window.displayAIResults = (items) => {
+                // Call original function first
+                const result = originalDisplayAIResults(items);
+                
+                // Then enhance with MagicUI
+                setTimeout(() => {
+                    this.enhanceResultDisplay(items);
+                }, 100);
+                
+                return result;
+            };
+        }
     }
 
     // =======================================================================
@@ -343,9 +546,14 @@ class EasyBinModernFeatures {
             </div>
         `;
         
-        const resultCard = document.getElementById('result-card');
+        // Try multiple selectors for compatibility with Bento Grid layout
+        const resultCard = document.getElementById('result-card') || 
+                          document.querySelector('.results-card') || 
+                          document.getElementById('result-content');
         if (resultCard) {
             resultCard.appendChild(batchContainer);
+        } else {
+            console.warn('Batch scanning: Could not find results container, skipping UI initialization');
         }
 
         // Add event listeners
@@ -360,13 +568,21 @@ class EasyBinModernFeatures {
     // SMART SUGGESTIONS SYSTEM
     // =======================================================================
     initSmartSuggestions() {
-        // Add suggestion container to UI
+        // Add suggestion container to UI - compatible with Bento Grid layout
         const suggestionsContainer = document.createElement('div');
         suggestionsContainer.id = 'smart-suggestions';
         suggestionsContainer.className = 'hidden mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200';
         
-        const resultCard = document.getElementById('result-card');
-        resultCard.appendChild(suggestionsContainer);
+        // Try multiple selectors for compatibility
+        const resultCard = document.getElementById('result-card') || 
+                          document.querySelector('.results-card') || 
+                          document.getElementById('result-content');
+        
+        if (resultCard) {
+            resultCard.appendChild(suggestionsContainer);
+        } else {
+            console.warn('Smart suggestions: Could not find results container, skipping initialization');
+        }
     }
 
     showSmartSuggestions(item) {

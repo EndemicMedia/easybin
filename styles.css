@@ -62,12 +62,26 @@
     --light-background: #f0fdf4;
 }
 
-/* Ensure full height and no scrolling */
+/* Ensure full height and proper scrolling behavior */
 html, body {
     margin: 0;
     padding: 0;
     height: 100%;
-    overflow: hidden;
+}
+
+/* Desktop - prevent scrolling for fixed totem layout */
+@media (min-width: 769px) {
+    html, body {
+        overflow: hidden;
+    }
+}
+
+/* Mobile - allow scrolling */
+@media (max-width: 768px) {
+    html, body {
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
 }/* Minimal custom CSS - mostly handled by Tailwind */
 body {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
@@ -93,6 +107,106 @@ body {
     .border-green-500 {
         border-color: #000 !important;
     }
+}
+
+/* Orbiting Circles Animation */
+.orbiting-circles {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    margin: 0 auto;
+}
+
+.orbiting-circles::before,
+.orbiting-circles::after {
+    content: '';
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+    animation: orbit 2s linear infinite;
+}
+
+.orbiting-circles::before {
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.orbiting-circles::after {
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    animation-delay: -1s;
+}
+
+@keyframes orbit {
+    0% {
+        transform: rotate(0deg) translateX(30px) rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg) translateX(30px) rotate(-360deg);
+    }
+}
+
+/* Custom Spinner */
+.custom-spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(59, 130, 246, 0.3);
+    border-top: 3px solid #3b82f6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Pulsing Text */
+.pulsing-text {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* Identify Button Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+        transform: translate(-50%, 0);
+    }
+    to {
+        opacity: 0;
+        transform: translate(-50%, 20px);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-fade-out {
+    animation: fadeOut 0.3s ease-in forwards;
 }
 
 /* Focus styles for better accessibility */
@@ -232,6 +346,133 @@ input:focus {
 }
 
 /* =============================================================================
+   BENTO GRID LAYOUT SYSTEM
+   ============================================================================= */
+
+/* Bento Grid Container */
+.bento-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 1rem;
+    height: 100vh;
+    padding: 1rem;
+    box-sizing: border-box;
+}
+
+/* Bento Card Base Styles */
+.bento-card {
+    border-radius: 1rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Quick Actions Card (Left full height sidebar) */
+.quick-actions-card {
+    grid-column: 1 / 2;
+    grid-row: 1 / 3;
+}
+
+/* Camera Card (Middle top) */
+.camera-card {
+    grid-column: 2 / 4;
+    grid-row: 1 / 2;
+}
+
+/* Controls Card (Middle bottom - now includes Identify Item) */
+.controls-card {
+    grid-column: 2 / 4;
+    grid-row: 2 / 3;
+}
+
+/* Primary Action Card (Hidden/Merged into Controls) */
+.primary-action-card {
+    display: none;
+}
+
+/* Results Card (Right - EasyBin welcome page with stats) */
+.results-card {
+    grid-column: 4 / 7;
+    grid-row: 1 / 3;
+}
+
+/* Tablet Layout (768px - 1024px) */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .bento-grid {
+        grid-template-columns: 1fr 1fr 1fr;
+        grid-template-rows: auto auto auto;
+        gap: 0.75rem;
+        padding: 0.75rem;
+    }
+    
+    .quick-actions-card {
+        grid-column: 1 / 2;
+        grid-row: 1 / 3;
+    }
+    
+    .camera-card {
+        grid-column: 2 / 4;
+        grid-row: 1 / 2;
+    }
+    
+    .controls-card {
+        grid-column: 2 / 4;
+        grid-row: 2 / 3;
+    }
+    
+    .primary-action-card {
+        display: none;
+    }
+    
+    .results-card {
+        grid-column: 1 / 4;
+        grid-row: 3 / 4;
+    }
+}
+
+/* Mobile Layout (< 768px) */
+@media (max-width: 768px) {
+    .bento-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto auto auto;
+        gap: 0.5rem;
+        padding: 0.5rem;
+        height: auto;
+        min-height: 100vh;
+    }
+    
+    .results-card {
+        grid-column: 1 / 2;
+        grid-row: 1 / 2;
+        min-height: 300px;
+    }
+    
+    .camera-card {
+        grid-column: 1 / 2;
+        grid-row: 2 / 3;
+        min-height: 250px;
+    }
+    
+    .controls-card {
+        grid-column: 1 / 2;
+        grid-row: 3 / 4;
+        min-height: 200px;
+    }
+    
+    .primary-action-card {
+        display: none;
+    }
+    
+    .quick-actions-card {
+        grid-column: 1 / 2;
+        grid-row: 4 / 5;
+        min-height: 150px;
+    }
+}
+
+/* =============================================================================
    MODERN UI ENHANCEMENTS & FEATURES
    ============================================================================= */
 
@@ -242,14 +483,14 @@ input:focus {
     --secondary-blue: #3b82f6;
     --accent-purple: #8b5cf6;
     --gradient-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    --glass-bg: rgba(255, 255, 255, 0.1);
-    --glass-border: rgba(255, 255, 255, 0.2);
+    --glass-bg: rgba(255, 255, 255, 0.3);
+    --glass-border: rgba(255, 255, 255, 0.4);
     --shadow-light: 0 4px 6px rgba(0, 0, 0, 0.1);
     --shadow-medium: 0 8px 25px rgba(0, 0, 0, 0.15);
     --shadow-heavy: 0 20px 40px rgba(0, 0, 0, 0.1);
 }
 
-/* Glassmorphism Effect */
+/* Glassmorphism Effect with better contrast */
 .glass-card {
     background: var(--glass-bg);
     backdrop-filter: blur(20px);
@@ -376,11 +617,9 @@ input:focus {
     transform: scale(0.95);
 }
 
-/* Stats Cards */
+/* Stats Cards - removed hardcoded colors */
 .stats-card {
-    background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05));
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255,255,255,0.1);
     border-radius: 12px;
     padding: 1rem;
     transition: all 0.3s ease;
@@ -388,7 +627,6 @@ input:focus {
 
 .stats-card:hover {
     transform: translateY(-4px);
-    background: linear-gradient(135deg, rgba(255,255,255,0.15), rgba(255,255,255,0.08));
 }
 
 /* Progress Ring */
@@ -407,30 +645,16 @@ input:focus {
     position: fixed;
     top: 20px;
     right: 20px;
-    background: white;
     padding: 16px 24px;
     border-radius: 12px;
     box-shadow: var(--shadow-medium);
     transform: translateX(400px);
     transition: transform 0.3s ease, opacity 0.3s ease;
     z-index: 1000;
-    border-left: 4px solid var(--primary-green);
 }
 
 .toast.show {
     transform: translateX(0);
-}
-
-.toast.success {
-    border-left-color: var(--primary-green);
-}
-
-.toast.error {
-    border-left-color: #ef4444;
-}
-
-.toast.info {
-    border-left-color: var(--secondary-blue);
 }
 
 /* Improved Camera Preview */
@@ -458,7 +682,6 @@ input:focus {
     position: relative;
     border-radius: 12px;
     overflow: hidden;
-    background: white;
     box-shadow: var(--shadow-light);
     transition: all 0.3s ease;
 }
@@ -479,22 +702,46 @@ input:focus {
     font-size: 0.875rem;
 }
 
+/* View Transition API Support for Theme Toggle */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 2147483646;
+}
+
+html[data-theme="dark"]::view-transition-old(root) {
+  z-index: 2147483646;
+}
+
+html[data-theme="dark"]::view-transition-new(root) {
+  z-index: 1;
+}
+
 /* Dark Mode Support */
 @media (prefers-color-scheme: dark) {
     :root {
-        --glass-bg: rgba(0, 0, 0, 0.2);
-        --glass-border: rgba(255, 255, 255, 0.1);
+        --glass-bg: rgba(0, 0, 0, 0.4);
+        --glass-border: rgba(255, 255, 255, 0.3);
     }
     
-    .toast {
-        background: #1f2937;
-        color: #f9fafb;
+    body {
+        background: #0f172a;
+        color: #f1f5f9;
     }
     
-    .stats-card {
-        background: linear-gradient(135deg, rgba(0,0,0,0.2), rgba(0,0,0,0.1));
-        color: #f9fafb;
-    }
+    /* Toast - let Tailwind handle colors */
+    
+    /* Stats cards and glass cards - let Tailwind handle colors */
+    
+    /* Ripple button - let Tailwind handle colors */
 }
 
 /* Responsive Enhancements */

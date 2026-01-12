@@ -7,6 +7,7 @@ const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/styles.css',
+  '/magicui-components.css',
   '/app.js',
   '/translations.js',
   '/binStyles.js',
@@ -14,10 +15,10 @@ const STATIC_ASSETS = [
   '/error-monitor.js',
   '/security.js',
   '/modern-features.js',
-  '/manifest.json',
-  '/offline.html',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/magicui-components.js',
+  '/bento-integration.js',
+  '/update-app-for-bento.js',
+  '/manifest.json'
 ];
 
 // Install event - cache static assets

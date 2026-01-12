@@ -72,3 +72,19 @@ logs
 
 # Local settings
 .claude/settings.local.json
+
+# IDE workspace files
+*.code-workspace
+
+# Test artifacts
+.playwright-mcp/
+*.png
+*.jpg
+mobile-*.png
+
+# Temporary test scripts
+test-*.js
+!tests/**
+
+# Build artifacts
+tailwind-generated.css

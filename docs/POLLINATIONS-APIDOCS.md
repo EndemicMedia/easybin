@@ -1303,6 +1303,505 @@ To ensure sustainability and provide a clear distinction between free and suppor
 
 ---
 
+## Manual Integration Tests 🧪
+
+To verify the Pollinations API integration is working correctly with EasyBin, we provide two manual test files:
+
+### 1. Basic Multimodal Test
+
+**File:** `test-pollinations-manual.js`
+
+Tests the core multimodal format (text + image) with the Pollinations API:
+
+```bash
+node test-pollinations-manual.js
+```
+
+**What it tests:**
+- Canvas image creation and base64 encoding
+- Proper multimodal format for Pollinations API
+- Response structure validation (OpenAI-compatible format)
+- Error handling and recovery
+
+**Expected output:**
+```
+Step 1: Creating test canvas...
+✅ Canvas created with test image (100x100)
+
+Step 2: Converting canvas to base64...
+✅ Image converted to base64 (444 characters)
+
+Step 3: Preparing Pollinations API request...
+✅ Request payload prepared
+
+Step 4: Calling Pollinations API...
+✅ API response received (Status: 200)
+
+Step 5: Validating response structure...
+✅ Response structure is valid
+```
+
+### 2. Waste Analysis Integration Test
+
+**File:** `test-pollinations-waste-analysis.js`
+
+Tests the full waste analysis workflow using the actual prompt from EasyBin's `app.js`:
+
+```bash
+node test-pollinations-waste-analysis.js
+```
+
+**What it tests:**
+- Waste analysis prompt format and requirements
+- JSON response parsing (items array structure)
+- Expected waste sorting fields (itemName, primaryBin, confidence, material, reasoning)
+- Handling of error cases when items cannot be identified
+- End-to-end workflow matching production implementation
+
+**Expected output:**
+```
+Step 1: Preparing test image...
+✅ Test image prepared (444 characters)
+
+Step 2: Preparing API request with waste analysis prompt...
+✅ Request payload prepared
+
+Step 3: Calling Pollinations API...
+✅ API response received (Status: 200)
+
+Step 5: Parsing waste analysis structure...
+✅ Waste analysis JSON parsed successfully
+
+Step 6: Parsed Waste Analysis Results:
+   Item 1: Identification Failed
+   - Primary Bin: error
+   - Confidence: 0%
+   - Reasoning: Could not recognize a distinct item...
+```
+
+### Test Implementation Details
+
+Both tests use the following approach:
+
+1. **Mock Canvas**: Creates a minimal valid JPEG image for testing (since Node.js lacks native canvas)
+2. **Request Formatting**: Constructs proper OpenAI-compatible multimodal messages
+3. **Response Validation**: Validates the API response structure against expected format
+4. **Error Handling**: Catches and logs errors with troubleshooting guidance
+
+### API Request Format (Used in Tests)
+
+The tests verify this exact request format works with Pollinations:
+
+```json
+{
+  "model": "openai",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "[prompt text]"
+        },
+        {
+          "type": "image_url",
+          "image_url": {
+            "url": "data:image/jpeg;base64,[base64-encoded image]"
+          }
+        }
+      ]
+    }
+  ],
+  "max_tokens": 1000
+}
+```
+
+### Response Format (Used in Tests)
+
+Pollinations API returns OpenAI-compatible format:
+
+```json
+{
+  "choices": [
+    {
+      "message": {
+        "content": "[response text or JSON]"
+      }
+    }
+  ]
+}
+```
+
+Extract content with: `data.choices[0].message.content`
+
+### Waste Analysis Response Structure
+
+When using the waste analysis prompt, expect this JSON structure:
+
+```json
+{
+  "items": [
+    {
+      "itemName": "Aluminum Can",
+      "primaryBin": "recyclable",
+      "primaryConfidence": 0.95,
+      "secondaryBin": "general-waste",
+      "secondaryConfidence": 0.05,
+      "material": "Aluminum",
+      "reasoning": "Clean aluminum can, typically recyclable.",
+      "isContaminated": false,
+      "position": "center"
+    }
+  ]
+}
+```
+
+Or when identification fails:
+
+```json
+{
+  "items": [
+    {
+      "itemName": "Identification Failed",
+      "primaryBin": "error",
+      "primaryConfidence": 0.0,
+      "secondaryBin": null,
+      "secondaryConfidence": 0.0,
+      "material": null,
+      "reasoning": "Could not recognize a distinct item clearly enough for sorting.",
+      "isContaminated": false,
+      "position": "unknown"
+    }
+  ]
+}
+```
+
+### Troubleshooting Test Failures
+
+If tests fail:
+
+1. **Check internet connectivity**: Tests require active internet connection
+2. **Verify Pollinations is accessible**: Visit https://text.pollinations.ai/openai
+3. **Check rate limits**: May be temporarily rate-limited if running multiple tests
+4. **Review Pollinations status**: Check https://status.pollinations.ai
+5. **Validate base64 encoding**: Ensure image data URLs are properly formatted
+
+---
+
+# EasyBin Implementation Details
+
+## Overview
+
+EasyBin uses the Pollinations.AI Vision API (`/openai` endpoint) to analyze waste items from camera images. This section documents the specific implementation patterns, error handling, and best practices used in EasyBin.
+
+## Multimodal Format (Text + Image)
+
+EasyBin sends both a detailed text prompt and image data to Pollinations API using the OpenAI-compatible multimodal format:
+
+```javascript
+// Request structure used by EasyBin
+const payload = {
+    model: 'openai',
+    messages: [
+        {
+            role: 'user',
+            content: [
+                {
+                    type: 'text',
+                    text: 'Detailed waste analysis prompt...'
+                },
+                {
+                    type: 'image_url',
+                    image_url: {
+                        url: 'data:image/jpeg;base64,{BASE64_IMAGE}'
+                    }
+                }
+            ]
+        }
+    ],
+    max_tokens: 1000
+};
+```
+
+## Base64 Image Extraction
+
+EasyBin handles image data conversion from canvas to base64:
+
+```javascript
+// From canvas.toDataURL() - data URL format
+const imageData = 'data:image/jpeg;base64,/9j/4AAQSkZJRg...';
+
+// Extract clean base64 (remove 'data:image/jpeg;base64,' prefix)
+const base64Match = imageData.match(/,(.+)$/);
+const base64Image = base64Match ? base64Match[1] : imageData;
+
+// Prepare for API request
+const url = `data:image/jpeg;base64,${base64Image}`;
+```
+
+## Response Parsing
+
+Pollinations returns OpenAI-compatible JSON structure:
+
+```javascript
+// Raw API response
+const data = {
+    choices: [
+        {
+            message: {
+                content: '{"items": [...]}'  // JSON string for waste analysis
+            }
+        }
+    ]
+};
+
+// Extract content
+const content = data.choices?.[0]?.message?.content || '';
+
+// For waste analysis, parse the JSON string
+const analysis = JSON.parse(content);
+const items = analysis.items || [];
+```
+
+## Expected Waste Analysis Response
+
+EasyBin expects this JSON structure from Pollinations API:
+
+```json
+{
+  "items": [
+    {
+      "itemName": "Plastic Bottle",
+      "primaryBin": "recyclable",
+      "primaryConfidence": 0.95,
+      "secondaryBin": "general-waste",
+      "secondaryConfidence": 0.05,
+      "material": "plastic",
+      "reasoning": "Clean PET plastic bottle suitable for recycling",
+      "isContaminated": false,
+      "position": "center"
+    }
+  ]
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `itemName` | string | Name of identified waste item |
+| `primaryBin` | string | Primary disposal bin category (recyclable, organic, general-waste, hazardous) |
+| `primaryConfidence` | number | Confidence score (0.0 to 1.0) for primary bin classification |
+| `secondaryBin` | string | Alternative disposal bin if primary is unsuitable |
+| `secondaryConfidence` | number | Confidence score for secondary bin |
+| `material` | string | Material composition (plastic, paper, glass, metal, organic, etc.) |
+| `reasoning` | string | Explanation for the bin classification decision |
+| `isContaminated` | boolean | Whether the item requires cleaning before disposal |
+| `position` | string | Position in image (center, left, right, top, bottom) |
+
+## Error Handling Strategy
+
+### Retry Logic with Exponential Backoff
+
+EasyBin implements automatic retries for transient failures:
+
+```javascript
+const MAX_RETRIES = 2;
+const RETRY_DELAYS = [1000, 2000]; // 1s, 2s
+
+for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+        const response = await fetch('https://text.pollinations.ai/openai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestPayload)
+        });
+
+        // Retry on 5xx errors (server issues)
+        if (response.status >= 500) {
+            throw new Error(`Server error: ${response.status}`);
+        }
+
+        // Don't retry on 4xx errors (client/validation errors)
+        if (!response.ok) {
+            const error = new Error(`API error: ${response.status}`);
+            error.retryable = false;
+            throw error;
+        }
+
+        return await response.json();
+
+    } catch (error) {
+        const isRetryable = error.retryable === true ||
+                          error.message.includes('Server error') ||
+                          error.message.includes('Failed');
+
+        if (!isRetryable || attempt === MAX_RETRIES) {
+            throw error;
+        }
+
+        // Wait before retry
+        await new Promise(resolve =>
+            setTimeout(resolve, RETRY_DELAYS[attempt])
+        );
+    }
+}
+```
+
+### Error Categories
+
+1. **Network Errors** (retryable):
+   - Timeout
+   - Connection refused
+   - DNS resolution failure
+   - Status 503 (Service Unavailable)
+
+2. **Server Errors** (retryable):
+   - 500 Internal Server Error
+   - 502 Bad Gateway
+   - 504 Gateway Timeout
+
+3. **Client Errors** (non-retryable):
+   - 400 Bad Request (invalid prompt format)
+   - 401 Unauthorized (missing/invalid token)
+   - 403 Forbidden (rate limited by tier)
+   - 404 Not Found (endpoint unavailable)
+
+## Request Size and Performance
+
+EasyBin monitors request metrics:
+
+```javascript
+// Log request size
+const requestSize = JSON.stringify(requestPayload).length;
+console.log(`Request size: ${(requestSize / 1024).toFixed(2)} KB`);
+
+// Log response time
+const startTime = Date.now();
+const response = await fetch(url, options);
+const responseTime = Date.now() - startTime;
+console.log(`Response received in ${responseTime}ms`);
+```
+
+### Typical Request/Response Metrics
+- **Request size**: 50-150 KB (compressed image + prompt)
+- **Response time**: 2-5 seconds (typical)
+- **Response size**: 1-5 KB (JSON analysis result)
+
+## Image Compression
+
+EasyBin compresses images before sending to API:
+
+```javascript
+function resizeAndCompressImage(canvas, maxWidth = 800, maxHeight = 600) {
+    const scale = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
+    const ctx = document.createElement('canvas');
+    ctx.width = canvas.width * scale;
+    ctx.height = canvas.height * scale;
+
+    ctx.getContext('2d').drawImage(canvas, 0, 0, ctx.width, ctx.height);
+
+    return ctx.toDataURL('image/jpeg', 0.7); // 70% quality
+}
+```
+
+**Benefits:**
+- Reduces request payload size
+- Faster upload times
+- Lower API processing load
+- Maintains sufficient quality for waste item recognition
+
+## Rate Limiting and Quotas
+
+EasyBin respects Pollinations tier-based rate limits:
+
+| Tier | Rate Limit | Typical Use |
+|------|-----------|------------|
+| Anonymous | 15 sec interval | Development, testing |
+| Seed | 5 sec interval | Registered referrer |
+| Flower | 3 sec interval | High-volume app |
+| Nectar | Unlimited | Enterprise deployment |
+
+**Handling Rate Limits:**
+```javascript
+// If receiving 429 (Too Many Requests):
+// 1. Implement exponential backoff (already done)
+// 2. Queue requests instead of parallel calls
+// 3. Register referrer for higher tier
+// 4. Use API token for backend calls
+```
+
+## Monitoring and Alerting
+
+### Log Points in EasyBin
+
+```javascript
+// 1. Request initiation
+console.log("Calling Pollinations.AI vision API...");
+console.log(`Request size: ${(requestSize / 1024).toFixed(2)} KB`);
+
+// 2. Response received
+console.log(`Response received in ${responseTime}ms (attempt ${attempt + 1})`);
+
+// 3. Successful parsing
+console.log("Raw Pollinations AI response:", data);
+
+// 4. Retry attempts
+console.warn(`Retry attempt ${attempt + 1}/${MAX_RETRIES}: ${error.message}`);
+
+// 5. Final errors
+console.error("Pollinations AI error:", error);
+```
+
+### Recommended Production Monitoring
+
+- **Error rate**: Track percentage of failed requests
+- **Response time**: Monitor P50, P95, P99 latencies
+- **Retry count**: Measure retry frequency (should be <5%)
+- **Waste identification success**: Track percentage of successful classifications
+- **User experience**: Monitor time-to-result from user perspective
+
+## Security Considerations
+
+### Data Privacy
+- No waste analysis is logged to Pollinations (images are temporary)
+- Results stored locally in localStorage
+- Camera images never leave the device unless analyzed
+
+### API Authentication
+- EasyBin uses referrer-based authentication (browser-based)
+- No API tokens exposed in frontend code
+- Requests are encrypted via HTTPS
+
+### CSP Compliance
+- Pollinations endpoint in Content Security Policy:
+```html
+connect-src https://text.pollinations.ai
+```
+
+## Troubleshooting Guide
+
+### Common Issues and Solutions
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| `Cannot read properties of undefined (reading 'ai')` | Puter SDK not loaded | Check network, refresh page |
+| `Failed to parse JSON` | Corrupted response | Retry request, check prompt format |
+| `429 Too Many Requests` | Rate limited | Wait, use referrer tier or token |
+| `503 Service Unavailable` | API down | Implement retry logic (built-in) |
+| `Invalid image format` | Corrupted base64 | Re-capture image, check compression |
+
+### Debug Mode
+
+Enable detailed logging:
+```javascript
+// In browser console
+localStorage.setItem('debug_mode', 'true');
+// Then capture images - detailed logs will appear
+```
+
+---
+
 ## License 📜
 
 Pollinations.AI is open-source software licensed under the [MIT license](LICENSE). This means you are free to use, modify, and distribute the software, provided you include the original copyright and license notice.

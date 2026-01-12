@@ -2,7 +2,7 @@
 const translations = {
     en: {
         // Core UI elements
-        appTitle: "Smart Trash Separator",
+        appTitle: "EasyBin",
         languageLabel: "Language:",
         countryLabel: "Region:",
         scanButtonText: "Identify Item",

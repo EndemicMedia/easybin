@@ -3,8 +3,8 @@ const video = document.getElementById('camera');
 const canvas = document.createElement('canvas');
 const context = canvas.getContext('2d');
 const scanButton = document.getElementById('scan-button');
-const outputDiv = document.getElementById('output');
-const resultCard = document.getElementById('result-card');
+const outputDiv = document.getElementById('output') || document.querySelector('.results-card');
+const resultCard = document.getElementById('result-card') || document.querySelector('.results-card');
 const binHeader = document.getElementById('bin-header');
 const itemName = document.getElementById('item-name');
 const itemDescription = document.getElementById('item-description');
@@ -28,7 +28,55 @@ let lastImageDataUrl = null;
 
 // --- UI Update Functions ---
 function showSpinner() {
-    outputDiv.innerHTML = '<div class="spinner"></div>';
+    // Create loading overlay on camera instead of results panel
+    const cameraContainer = document.getElementById('camera-container');
+    console.log('showSpinner called, camera container:', cameraContainer);
+
+    // Remove any existing loading overlay
+    const existingOverlay = document.getElementById('ai-loading-overlay');
+    if (existingOverlay) {
+        console.log('Removing existing overlay');
+        existingOverlay.remove();
+    }
+
+    // Create new loading overlay
+    const loadingOverlay = document.createElement('div');
+    loadingOverlay.id = 'ai-loading-overlay';
+    loadingOverlay.className = 'absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-30';
+    loadingOverlay.innerHTML = `
+        <div class="flex flex-col items-center justify-center text-white">
+            <div class="relative mb-6">
+                <!-- Orbiting Circles Animation -->
+                <div class="orbiting-circles"></div>
+                <!-- Custom Spinner -->
+                <div class="custom-spinner"></div>
+            </div>
+            <div class="text-center">
+                <p class="text-lg font-medium mb-2 hyper-text">Analyzing image...</p>
+                <p class="text-sm opacity-75 pulsing-text">AI processing in progress</p>
+            </div>
+        </div>`;
+
+    // Add overlay to camera container
+    if (cameraContainer) {
+        console.log('Adding loading overlay to camera container');
+        cameraContainer.appendChild(loadingOverlay);
+    } else {
+        console.log('Camera container not found, using fallback');
+        // Fallback to original behavior if camera container not found
+        outputDiv.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-8">
+                <div class="relative mb-6">
+                    <div class="orbiting-circles"></div>
+                    <div class="custom-spinner"></div>
+                </div>
+                <div class="text-center">
+                    <p class="text-lg font-medium text-gray-700 dark:text-gray-300 mb-2">Analyzing image...</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 pulsing-text">AI processing in progress</p>
+                </div>
+            </div>`;
+    }
+
     // Hide welcome state and show result content when processing
     const welcomeState = document.getElementById('welcome-state');
     const resultContent = document.getElementById('result-content');
@@ -36,7 +84,7 @@ function showSpinner() {
     if (resultContent) resultContent.classList.remove('hidden');
     resultCard.classList.remove('hidden'); // Ensure card is visible
     scanButton.disabled = true;
-    updateAppStatus('Analyzing image...');
+    updateAppStatus('Analyzing image...', 'loading');
 }
 
 function updateAppStatus(message, type = 'info') {
@@ -46,18 +94,42 @@ function updateAppStatus(message, type = 'info') {
         if (type === 'loading') icon = 'fas fa-spinner fa-spin text-blue-500';
         else if (type === 'error') icon = 'fas fa-exclamation-triangle text-red-500';
         else if (type === 'success') icon = 'fas fa-check-circle text-green-500';
-        
+
         statusElement.innerHTML = `<i class="${icon} mr-1" aria-hidden="true"></i>${message}`;
     }
 }
 
 function hideSpinner() {
-    outputDiv.innerHTML = `<div id="app-status" class="text-center text-sm text-gray-500 py-2">
-                            <i class="fas fa-leaf text-green-500 mr-1" aria-hidden="true"></i>
-                            Ready to scan
-                          </div>`;
+    // Remove the camera loading overlay
+    const loadingOverlay = document.getElementById('ai-loading-overlay');
+    if (loadingOverlay) {
+        loadingOverlay.remove();
+    } else {
+        // Fallback: clear outputDiv if overlay wasn't used
+        outputDiv.innerHTML = `<div id="app-status" class="text-center text-sm text-gray-500 py-2">
+                                <i class="fas fa-leaf text-green-500 mr-1" aria-hidden="true"></i>
+                                Ready to scan
+                              </div>`;
+    }
+
     scanButton.disabled = false; // Re-enable button after attempt
     updateAppStatus('Ready to scan', 'info');
+
+    // Show identify button again with animation after 1 second delay if camera is active
+    const video = document.getElementById('camera');
+    const identifyButtonContainer = document.getElementById('identify-button-container');
+    if (video && !video.classList.contains('hidden') && identifyButtonContainer) {
+        console.log("Scheduling identify button to reappear after 1 second delay");
+        setTimeout(() => {
+            console.log("Showing identify button after delay");
+            // Clear any existing animation classes
+            identifyButtonContainer.classList.remove('animate-fade-out', 'animate-fade-in');
+            // Show the button
+            identifyButtonContainer.classList.remove('hidden');
+            // Add fade-in animation
+            identifyButtonContainer.classList.add('animate-fade-in');
+        }, 1000); // 1 second delay
+    }
 }
 
 function showCameraLoading() {
@@ -136,7 +208,7 @@ function generateBinDetails(binType, material, country) {
 
     // Set bin class, name, icon, and instruction key based on bin type, material hint, and country
     if (country === 'br') { // Brazil Specific Logic
-        switch(binType) {
+        switch (binType) {
             case 'recyclable':
                 if (materialLower.includes('paper') || materialLower.includes('cardboard')) {
                     binColorClassKey = 'br-recyclable-paper';
@@ -184,7 +256,7 @@ function generateBinDetails(binType, material, country) {
                 specificInstructionKey = 'instructionGeneralBR';
         }
     } else if (country === 'de') { // German Logic (Existing)
-        switch(binType) {
+        switch (binType) {
             case 'recyclable':
                 if (materialLower.includes('paper') || materialLower.includes('cardboard')) {
                     binColorClassKey = 'de-recyclable-paper';
@@ -217,7 +289,7 @@ function generateBinDetails(binType, material, country) {
                 specificInstructionKey = 'instructionGeneralDE';
         }
     } else if (country === 'it') { // Italian Logic (Existing)
-        switch(binType) {
+        switch (binType) {
             case 'recyclable':
                 if (materialLower.includes('paper') || materialLower.includes('cardboard')) {
                     binColorClassKey = 'it-recyclable-paper';
@@ -255,7 +327,7 @@ function generateBinDetails(binType, material, country) {
                 specificInstructionKey = 'instructionGeneralIT';
         }
     } else { // US or Default Logic (Existing)
-        switch(binType) {
+        switch (binType) {
             case 'recyclable':
                 binColorClassKey = 'us-recyclable';
                 binNameKey = 'binNameRecyclingUS'; // Use US as default naming scheme
@@ -284,8 +356,8 @@ function generateBinDetails(binType, material, country) {
 
     // Get Regional Bin Name (Use the region's specific translation, fallback to English for region, fallback to key)
     regionalBinName = t_region_specific?.[binNameKey]
-                    || t_region_en[binNameKey]
-                    || binNameKey;
+        || t_region_en[binNameKey]
+        || binNameKey;
 
     // Get UI language bin name (Use UI language, fallback to regional name)
     uiBinName = t_ui?.[binNameKey] || regionalBinName;
@@ -328,24 +400,24 @@ function generateInstructionText(item, details) {
 
         // Get the name of the general waste bin in the region's language
         const generalBinName = t_region?.[generalBinKey]
-                            || translations.en[generalBinKey] // Fallback to English regional
-                            || t_ui.binGeneral; // Fallback to UI generic
+            || translations.en[generalBinKey] // Fallback to English regional
+            || t_ui.binGeneral; // Fallback to UI generic
 
         // Get the contaminated instruction text in the UI language with fallbacks
-        const contaminatedText = t_ui?.[contaminatedInstructionKey] || 
-                             translations.en[contaminatedInstructionKey] || 
-                             t_ui?.aiContaminatedWarning ||
-                             "Item appears contaminated. Place in the {binName} instead.";
-        
+        const contaminatedText = t_ui?.[contaminatedInstructionKey] ||
+            translations.en[contaminatedInstructionKey] ||
+            t_ui?.aiContaminatedWarning ||
+            "Item appears contaminated. Place in the {binName} instead.";
+
         // Make sure we safely do the replacement
         instructionText = contaminatedText.replace('{binName}', generalBinName || t_ui?.binGeneral || "General Waste");
     } else {
         // Use the specific instruction key determined by generateBinDetails
         // Fetch instruction in UI language, fallback to English version of key, fallback to UI generic, absolute fallback
         instructionText = t_ui?.[specificInstructionKey]
-                        || translations.en[specificInstructionKey]
-                        || t_ui.instructionGeneral // Generic UI fallback
-                        || "Place in the {binName}."; // Absolute fallback
+            || translations.en[specificInstructionKey]
+            || t_ui.instructionGeneral // Generic UI fallback
+            || "Place in the {binName}."; // Absolute fallback
 
         // Replace placeholders
         instructionText = instructionText.replace('{binName}', targetBinName);
@@ -382,7 +454,7 @@ function updateUIText(lang) {
     // Update modal title and empty message if modal elements exist
     const modalTitle = document.getElementById('history-modal-title');
     const emptyState = document.getElementById('history-empty-state');
-    if(modalTitle) modalTitle.textContent = t.historyModalTitle || 'Scan History';
+    if (modalTitle) modalTitle.textContent = t.historyModalTitle || 'Scan History';
     // Note: Empty state text is hardcoded in HTML for better UX
 
     // Update country names in dropdown to current language if available
@@ -390,6 +462,95 @@ function updateUIText(lang) {
     // For simplicity, we'll keep the country dropdown text in English for now.
     // You could add a function here to iterate through countrySelect options
     // and update their text based on a translation map if needed.
+}
+
+// --- Animated Theme Toggle Function ---
+function initializeThemeToggle() {
+    const themeToggle = document.getElementById('animated-theme-toggle');
+    const themeIcon = document.getElementById('theme-toggle-icon');
+
+    if (!themeToggle || !themeIcon) {
+        console.warn('Animated theme toggle elements not found');
+        return;
+    }
+
+    // Check for saved theme preference or default to 'light'
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+    // Use saved theme or system preference
+    const initialTheme = savedTheme !== 'system' ? savedTheme : (systemPrefersDark ? 'dark' : 'light');
+
+    // Apply initial theme
+    applyTheme(initialTheme);
+    updateThemeToggle(themeToggle, themeIcon, initialTheme);
+
+    // Add click event listener with animation
+    themeToggle.addEventListener('click', (e) => {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+        const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+
+        // Use View Transition API if available, fallback to regular animation
+        if (document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            const rect = themeToggle.getBoundingClientRect();
+            const x = rect.left + rect.width / 2;
+            const y = rect.top + rect.height / 2;
+            const maxRadius = Math.hypot(
+                Math.max(x, window.innerWidth - x),
+                Math.max(y, window.innerHeight - y)
+            );
+
+            document.startViewTransition(() => {
+                applyTheme(newTheme);
+                updateThemeToggle(themeToggle, themeIcon, newTheme);
+                localStorage.setItem('theme', newTheme);
+            });
+        } else {
+            // Fallback animation
+            themeToggle.classList.add('transitioning');
+
+            setTimeout(() => {
+                applyTheme(newTheme);
+                updateThemeToggle(themeToggle, themeIcon, newTheme);
+                localStorage.setItem('theme', newTheme);
+
+                setTimeout(() => {
+                    themeToggle.classList.remove('transitioning');
+                }, 500);
+            }, 250);
+        }
+    });
+
+    // Listen for system theme changes
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+        if (localStorage.getItem('theme') === 'system') {
+            const newTheme = e.matches ? 'dark' : 'light';
+            applyTheme(newTheme);
+            updateThemeToggle(themeToggle, themeIcon, newTheme);
+        }
+    });
+}
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+
+    if (theme === 'dark') {
+        document.documentElement.classList.add('dark');
+        document.body.style.background = '#0f172a';
+    } else {
+        document.documentElement.classList.remove('dark');
+        document.body.style.background = '';
+    }
+}
+
+function updateThemeToggle(toggleButton, icon, theme) {
+    if (theme === 'dark') {
+        toggleButton.classList.add('dark');
+        icon.className = 'fas fa-moon theme-icon text-blue-300';
+    } else {
+        toggleButton.classList.remove('dark');
+        icon.className = 'fas fa-sun theme-icon text-yellow-500';
+    }
 }
 
 // --- Display Results Function (Handles success and AI-reported failure) ---
@@ -458,24 +619,24 @@ function displayAIResults(items) {
     binHeader.className = `bin-header flex flex-col items-center justify-center p-6 text-white text-center min-h-[180px] ${bgColorClass} transition-all duration-500 ease-in-out transform`;
     binHeader.style.transform = 'scale(1)';
     binHeader.style.opacity = '1';
-    
+
     // Force reflow
     binHeader.offsetHeight;
-    
+
     // Add animation
     binHeader.style.transform = 'scale(1.05)';
     binHeader.style.opacity = '0.8';
-    
+
     // Reset to normal
     setTimeout(() => {
         binHeader.style.transform = 'scale(1)';
         binHeader.style.opacity = '1';
     }, 300);
-    
+
     binHeader.innerHTML = `
         <i class="fas ${binIconClass} fa-3x mb-3"></i>
         <span class="block text-2xl font-bold leading-tight bin-name-region">${regionalBinName}</span>
-        ${ currentLanguage !== userCountry && uiBinName !== regionalBinName ? `<span class="block text-sm opacity-80 mt-1 bin-name-ui-lang">(${uiBinName})</span>` : '' }
+        ${currentLanguage !== userCountry && uiBinName !== regionalBinName ? `<span class="block text-sm opacity-80 mt-1 bin-name-ui-lang">(${uiBinName})</span>` : ''}
         <div class="bin-material text-sm font-medium mt-2 opacity-90">${headerMaterialSummary}</div>
     `;
 
@@ -531,12 +692,12 @@ function displayAIResults(items) {
     if (position) {
         const positionEl = createDynamicElement('item-position', 'text-xs text-gray-500 mt-3');
         let positionText = position;
-        
+
         // Translate common position values
         if (t.positions && t.positions[position]) {
             positionText = t.positions[position];
         }
-        
+
         positionEl.innerHTML = `<strong>${t.aiPositionPrefix || "Detected at:"}</strong> ${positionText}`;
         lastInsertedElement.insertAdjacentElement('afterend', positionEl);
         lastInsertedElement = positionEl;
@@ -568,7 +729,7 @@ function displayAIResults(items) {
     const resultContent = document.getElementById('result-content');
     if (welcomeState) welcomeState.classList.add('hidden');
     if (resultContent) resultContent.classList.remove('hidden');
-    
+
     resultCard.classList.remove('hidden');
     resultCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
@@ -596,20 +757,20 @@ function displayFailureResult(failureName, failureReasoning) {
     binHeader.className = `bin-header flex flex-col items-center justify-center p-6 text-white text-center min-h-[180px] ${bgColorClass} transition-all duration-500 ease-in-out transform`;
     binHeader.style.transform = 'scale(1)';
     binHeader.style.opacity = '1';
-    
+
     // Force reflow
     binHeader.offsetHeight;
-    
+
     // Add animation
     binHeader.style.transform = 'scale(1.05)';
     binHeader.style.opacity = '0.8';
-    
+
     // Reset to normal
     setTimeout(() => {
         binHeader.style.transform = 'scale(1)';
         binHeader.style.opacity = '1';
     }, 300);
-    
+
     binHeader.innerHTML = `
         <i class="fas fa-question-circle fa-3x mb-3"></i>
         <span class="block text-2xl font-bold leading-tight bin-name-region">${failureName}</span>
@@ -645,7 +806,7 @@ function handleFeedback(isCorrect) {
     if (feedbackContainer) {
         feedbackContainer.innerHTML = `<small class="text-gray-600">Thank you for your feedback!</small>`;
     }
-    
+
     // Track feedback
     if (window.easyBinAnalytics && lastResultItems && lastResultItems.length > 0) {
         const item = lastResultItems[0];
@@ -660,10 +821,10 @@ const HISTORY_KEY = 'trashSeparatorHistory_v2';
 function resizeAndCompressImage(dataUrl, maxDimension = 300, quality = 0.7) {
     return new Promise((resolve, reject) => {
         const img = new Image();
-        img.onload = function() {
+        img.onload = function () {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            
+
             // Calculate new dimensions while maintaining aspect ratio
             let width = img.width;
             let height = img.height;
@@ -678,12 +839,12 @@ function resizeAndCompressImage(dataUrl, maxDimension = 300, quality = 0.7) {
                     height = maxDimension;
                 }
             }
-            
+
             // Set canvas dimensions and draw the resized image
             canvas.width = width;
             canvas.height = height;
             ctx.drawImage(img, 0, 0, width, height);
-            
+
             // Return the compressed image as data URL
             resolve(canvas.toDataURL('image/jpeg', quality));
         };
@@ -739,40 +900,40 @@ function saveResultToHistory(itemData, imageDataUrl) {
                 language: currentLanguage,
                 region: userCountry
             };
-            
+
             history.unshift(historyEntry); // Add to the beginning
             // Keep fewer items by default (30 instead of 50)
             while (history.length > 30) { history.pop(); }
-            
+
             try {
                 localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
                 console.log("History saved successfully.");
             } catch (e) {
                 console.error("Error saving history to localStorage:", e);
-                
+
                 if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
                     console.warn("Storage quota exceeded. Implementing progressive cleanup.");
-                    
+
                     // Progressive cleanup strategy:
                     // 1. First try keeping just 20 items
                     history.splice(20);
-                    try { 
+                    try {
                         localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
                         console.log("History saved after reducing to 20 items.");
                         return;
-                    } catch (e2) {}
-                    
+                    } catch (e2) { }
+
                     // 2. If still fails, try keeping just 10 items
                     history.splice(10);
-                    try { 
-                        localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); 
+                    try {
+                        localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
                         console.log("History saved after reducing to 10 items.");
                         return;
-                    } catch (e3) {}
-                    
+                    } catch (e3) { }
+
                     // 3. Last resort: keep only the current item
                     history.splice(1);
-                    try { 
+                    try {
                         localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
                         console.log("History saved after reducing to just the current item.");
                     } catch (e4) {
@@ -828,27 +989,40 @@ function handleRetake() {
     const resultContent = document.getElementById('result-content');
     if (welcomeState) welcomeState.classList.remove('hidden');
     if (resultContent) resultContent.classList.add('hidden');
-    
+
     // Keep result card visible to show welcome state
     resultCard.classList.remove('hidden');
-    
+
     // Clear the output div
     outputDiv.innerHTML = '';
-    
+
     // Reset the last result items
     lastResultItems = null;
     lastAIResponse = null;
     lastImageDataUrl = null;
-    
+
     // Re-enable the scan button
     scanButton.disabled = false;
-    
+
+    // Show identify button again if camera is active
+    const video = document.getElementById('camera');
+    const identifyButtonContainer = document.getElementById('identify-button-container');
+    if (video && !video.classList.contains('hidden') && identifyButtonContainer) {
+        console.log("Showing identify button on retake");
+        // Clear any existing animation classes
+        identifyButtonContainer.classList.remove('animate-fade-out', 'animate-fade-in');
+        // Show the button
+        identifyButtonContainer.classList.remove('hidden');
+        // Add fade-in animation
+        identifyButtonContainer.classList.add('animate-fade-in');
+    }
+
     // Scroll back to the camera view
     const cameraContainer = document.getElementById('camera-container');
     if (cameraContainer) {
         cameraContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-    
+
     console.log("Retake photo - UI reset complete");
 }
 
@@ -859,14 +1033,14 @@ function handleShare() {
         // Get the current result data
         const item = lastResultItems?.[0];
         if (!item) return;
-        
+
         // Create share data
         const shareData = {
             title: 'EasyBin Waste Sorting Result',
-            text: `I identified a ${item.itemName} as ${item.primaryBin} waste with ${Math.round(item.primaryConfidence * 100)}% confidence.`, 
+            text: `I identified a ${item.itemName} as ${item.primaryBin} waste with ${Math.round(item.primaryConfidence * 100)}% confidence.`,
             url: window.location.href
         };
-        
+
         // Attempt to share
         navigator.share(shareData)
             .then(() => console.log('Share successful'))
@@ -879,7 +1053,7 @@ function handleShare() {
         // Web Share API not supported, fallback to clipboard
         const item = lastResultItems?.[0];
         if (!item) return;
-        
+
         const fallbackText = `I identified a ${item.itemName} as ${item.primaryBin} waste with ${Math.round(item.primaryConfidence * 100)}% confidence. Check out EasyBin for smart waste sorting!`;
         fallbackToClipboard({ text: fallbackText });
     }
@@ -888,7 +1062,7 @@ function handleShare() {
 // Fallback function to copy text to clipboard
 function fallbackToClipboard(data) {
     const text = data.text || data.title + ' ' + data.url;
-    
+
     // Try to use the Clipboard API
     if (navigator.clipboard) {
         navigator.clipboard.writeText(text)
@@ -938,26 +1112,26 @@ function handleSaveToPhotos() {
     // Create a canvas to render the result
     const canvas = document.createElement('canvas');
     const context = canvas.getContext('2d');
-    
+
     // Set canvas dimensions (standard phone screen ratio)
     canvas.width = 1080;
     canvas.height = 1920;
-    
+
     // Set background
     context.fillStyle = '#f8fafc';
     context.fillRect(0, 0, canvas.width, canvas.height);
-    
+
     // Set font styles
     context.fillStyle = '#1e293b';
-    
+
     // Add EasyBin logo/text
     context.font = 'bold 48px sans-serif';
     context.fillText('EasyBin', 60, 120);
-    
+
     context.font = '24px sans-serif';
     context.fillStyle = '#64748b';
     context.fillText('Smart Waste Sorting', 60, 160);
-    
+
     // Add separator
     context.strokeStyle = '#e2e8f0';
     context.lineWidth = 2;
@@ -965,36 +1139,36 @@ function handleSaveToPhotos() {
     context.moveTo(60, 200);
     context.lineTo(canvas.width - 60, 200);
     context.stroke();
-    
+
     // Get the current result data
     const item = lastResultItems?.[0];
     if (!item) {
         alert('No results to save. Please scan an item first.');
         return;
     }
-    
+
     // Add item name
     context.fillStyle = '#1e293b';
     context.font = 'bold 36px sans-serif';
     context.fillText(`Item: ${item.itemName}`, 60, 280);
-    
+
     // Add bin information
     context.font = '32px sans-serif';
     const binDetails = generateBinDetails(item.primaryBin, item.material, userCountry);
     context.fillText(`Bin: ${binDetails.uiBinName}`, 60, 340);
-    
+
     // Add confidence
     context.fillText(`Confidence: ${Math.round(item.primaryConfidence * 100)}%`, 60, 400);
-    
+
     // Add material if available
     if (item.material) {
         context.fillText(`Material: ${item.material}`, 60, 460);
     }
-    
+
     // Add reasoning
     context.font = '24px sans-serif';
     context.fillStyle = '#64748b';
-    
+
     // Wrap reasoning text
     const reasoning = item.reasoning || 'No reasoning available';
     const words = reasoning.split(' ');
@@ -1013,20 +1187,20 @@ function handleSaveToPhotos() {
         }
     }
     context.fillText(line, 60, y);
-    
+
     // Add timestamp
     context.fillStyle = '#64748b';
     context.font = '20px sans-serif';
     const now = new Date();
     context.fillText(`Saved on: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`, 60, canvas.height - 120);
-    
+
     // Add watermark
     context.fillStyle = '#cbd5e1';
     context.font = '18px sans-serif';
     context.fillText('EasyBin - Smart Waste Sorting', 60, canvas.height - 60);
-    
+
     // Convert canvas to data URL and trigger download
-    canvas.toBlob(function(blob) {
+    canvas.toBlob(function (blob) {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -1035,7 +1209,7 @@ function handleSaveToPhotos() {
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         // Show user feedback
         const saveButton = document.getElementById('save-button');
         const originalText = saveButton.innerHTML;
@@ -1236,7 +1410,7 @@ if (nextTip) {
 
 // Close tips when clicking outside
 if (tipsOverlay) {
-    tipsOverlay.addEventListener('click', function(event) {
+    tipsOverlay.addEventListener('click', function (event) {
         if (event.target === tipsOverlay) {
             tipsOverlay.classList.add('hidden');
             tipsOverlay.classList.remove('flex');
@@ -1253,6 +1427,43 @@ languageSelect.addEventListener('change', (event) => {
     }
 });
 
+// Enable notifications button functionality
+const enableNotificationsButton = document.getElementById('enable-notifications-button');
+if (enableNotificationsButton) {
+    enableNotificationsButton.addEventListener('click', async () => {
+        try {
+            if ('Notification' in window) {
+                if (Notification.permission === 'default') {
+                    const permission = await Notification.requestPermission();
+                    if (permission === 'granted') {
+                        showToast('Notifications enabled! You\'ll receive scan reminders.', 'success');
+                        enableNotificationsButton.textContent = 'Notifications Enabled';
+                        enableNotificationsButton.classList.add('bg-green-500', 'hover:bg-green-600');
+                        enableNotificationsButton.classList.remove('bg-orange-500', 'hover:bg-orange-600');
+
+                        // Show a test notification
+                        new Notification('EasyBin Notifications', {
+                            body: 'Notifications are now enabled! We\'ll remind you to sort your waste properly.',
+                            icon: '/icons/icon-192.png'
+                        });
+                    } else if (permission === 'denied') {
+                        showToast('Notifications were denied. You can enable them in your browser settings.', 'error');
+                    }
+                } else if (Notification.permission === 'granted') {
+                    showToast('Notifications are already enabled!', 'success');
+                } else {
+                    showToast('Notifications are blocked. Please enable them in your browser settings.', 'error');
+                }
+            } else {
+                showToast('Notifications are not supported in this browser.', 'error');
+            }
+        } catch (error) {
+            console.error('Error requesting notification permission:', error);
+            showToast('Error enabling notifications. Please try again.', 'error');
+        }
+    });
+}
+
 countrySelect.addEventListener('change', (event) => {
     userCountry = event.target.value;
     if (lastResultItems && !resultCard.classList.contains('hidden')) {
@@ -1262,98 +1473,86 @@ countrySelect.addEventListener('change', (event) => {
 });
 
 // Close modal if user clicks outside of the modal content
-historyModal.addEventListener('click', function(event) {
+historyModal.addEventListener('click', function (event) {
     if (event.target === historyModal) {
         toggleHistoryModal(false);
     }
 });
 
-// --- Pollinations.AI Integration ---
+// ============================
+// Global Variables
+// ============================
+
+// API Key Manager for user-provided API keys
+const apiKeyManager = new APIKeyManager();
+
+// Multi-Provider Vision Client
+const visionClient = new MultiProviderVisionClient(apiKeyManager);
+
+// Configuration
+const PUTER_AI_URL = 'https://api.puter.com/drivers/call';
+const MAX_RETRIES = 3;
+const INITIAL_RETRY_DELAY = 2000; // 2 seconds
+
 async function callPollinationsAI(prompt, imageData) {
+    const requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).substring(2, 11);
+
     try {
-        console.log("Calling Pollinations.AI vision API...");
-        
+        console.log(`[${requestId}] Calling Multi-Provider Vision API...`);
+
         // imageData is already a data URL string from canvas.toDataURL()
         let base64Image;
         if (typeof imageData === 'string' && imageData.startsWith('data:')) {
-            // imageData is already a data URL, use it directly
-            base64Image = imageData;
+            // imageData is already a data URL, extract clean base64
+            const base64Match = imageData.match(/,(.+)$/);
+            base64Image = base64Match ? base64Match[1] : imageData;
         } else {
             // If it's a blob, convert it
             base64Image = await blobToBase64(imageData);
         }
-        
-        const response = await fetch('https://text.pollinations.ai/openai', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Referer': 'https://endemicmedia.github.io'
-            },
-            body: JSON.stringify({
-                model: 'openai',
-                messages: [
-                    {
-                        role: 'user',
-                        content: [
-                            {
-                                type: 'text',
-                                text: prompt
-                            },
-                            {
-                                type: 'image_url',
-                                image_url: {
-                                    url: base64Image
-                                }
-                            }
-                        ]
-                    }
-                ],
-                max_tokens: 1000,
-                temperature: 0.1
-            })
+
+        console.log(`[${requestId}] Calling multi-provider vision client...`);
+
+        // Use multi-provider client which will try all providers with rotation
+        const result = await visionClient.analyze(prompt, base64Image);
+
+        console.log(`[${requestId}] SUCCESS: Used provider ${result.provider}, response time: ${result.responseTime}ms`);
+        console.log(`[${requestId}] Response content length: ${result.content.length} chars`);
+
+        return {
+            content: result.content,
+            model: result.provider,
+            timestamp: result.timestamp,
+            requestId: requestId,
+            responseTime: result.responseTime,
+            requestSize: base64Image.length
+        };
+
+    } catch (error) {
+        console.error(`[${requestId}] FATAL: Multi-Provider Vision API call failed:`, {
+            message: error.message,
+            attemptedProviders: error.attemptedProviders,
+            requestId: requestId,
+            timestamp: new Date().toISOString(),
+            stack: error.stack
         });
 
-        if (!response.ok) {
-            throw new Error(`Pollinations AI API error: ${response.status}`);
+        // Send to error monitor if available
+        if (typeof errorMonitor !== 'undefined' && errorMonitor) {
+            errorMonitor.captureError({
+                type: 'vision_api_fatal_error',
+                requestId: requestId,
+                message: error.message,
+                attemptedProviders: error.attemptedProviders,
+                timestamp: new Date().toISOString(),
+                stack: error.stack
+            });
         }
 
-        const data = await response.json();
-        console.log("Raw Pollinations AI response:", data);
-        
-        // Extract content from OpenAI-compatible format
-        const content = data.choices?.[0]?.message?.content || data.content || '';
-        
-        return {
-            content: content,
-            model: 'pollinations-openai',
-            timestamp: new Date().toISOString()
-        };
-        
-    } catch (error) {
-        console.error("Pollinations AI error:", error);
-        
-        // Fallback to structured fake response for testing/demo purposes
-        const fallbackResponse = {
-            "items": [{
-                "itemName": "Unidentified Item",
-                "primaryBin": "general-waste",
-                "primaryConfidence": 0.6,
-                "secondaryBin": "recyclable",
-                "secondaryConfidence": 0.3,
-                "material": "unknown",
-                "reasoning": "Unable to connect to AI service. This is a fallback response for testing purposes.",
-                "isContaminated": false,
-                "position": "center"
-            }]
-        };
-        
-        return {
-            content: JSON.stringify(fallbackResponse),
-            model: 'fallback-testing',
-            timestamp: new Date().toISOString()
-        };
+        throw error;
     }
 }
+
 
 // Helper function to convert blob to base64
 function blobToBase64(blob) {
@@ -1366,14 +1565,27 @@ function blobToBase64(blob) {
 }
 
 // --- Scan Button Action ---
-scanButton.onclick = function() {
+scanButton.onclick = function () {
+    // Hide identify button during processing with animation
+    const identifyButtonContainer = document.getElementById('identify-button-container');
+    if (identifyButtonContainer) {
+        console.log("Hiding identify button for processing");
+        identifyButtonContainer.classList.remove('animate-fade-in');
+        identifyButtonContainer.classList.add('animate-fade-out');
+        setTimeout(() => {
+            identifyButtonContainer.classList.add('hidden');
+            identifyButtonContainer.classList.remove('animate-fade-out');
+            console.log("Identify button hidden");
+        }, 300);
+    }
+
     showSpinner();
-    
+
     // Track scan attempt
     if (window.easyBinAnalytics) {
         window.easyBinAnalytics.trackScanAttempt(userCountry, currentLanguage);
     }
-    
+
     try {
         // Snapshot visual feedback
         const cameraContainer = document.getElementById('camera-container');
@@ -1385,11 +1597,12 @@ scanButton.onclick = function() {
         const snapContext = snapshotOverlay.getContext('2d');
         // Draw current video frame to hidden canvas first
         context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Get data URL from hidden canvas (use jpg for smaller size)
-        const imageData = canvas.toDataURL('image/jpeg', 0.85); // Use JPEG with 85% quality instead of PNG
+
+        // Get data URL from hidden canvas - use intelligent compression
+        const recommendedSettings = getRecommendedSettings(video.videoWidth, video.videoHeight);
+        const imageData = compressImage(canvas, context, video, recommendedSettings);
         lastImageDataUrl = imageData; // Store for history
-        
+
         // Draw onto snapshot overlay for visual effect
         snapContext.drawImage(video, 0, 0, snapshotOverlay.width, snapshotOverlay.height);
         cameraContainer.appendChild(snapshotOverlay);
@@ -1450,120 +1663,126 @@ Example for a successful identification:
 }`;
 
         console.log("Sending prompt to AI...");
-        
+
         // Check if Puter.js is available, otherwise use fallback
         if (typeof puter !== 'undefined' && puter.ai) {
             console.log("Using Puter.ai for analysis");
             puter.ai.chat(prompt, imageData)
-            .then(response => {
-                console.log("Raw AI Response Received:", response);
-                let aiResult;
-                let responseContent = '';
-                try {
-                    if (typeof response === 'string') {
-                        responseContent = response;
-                    } else if (typeof response === 'object' && response !== null) {
-                        responseContent = response.content || response.text || (response.message && response.message.content) || JSON.stringify(response); // Handle various structures
-                    } else { throw new Error("Unexpected AI response format."); }
+                .then(response => {
+                    console.log("Raw AI Response Received:", response);
+                    let aiResult;
+                    let responseContent = '';
+                    try {
+                        if (typeof response === 'string') {
+                            responseContent = response;
+                        } else if (typeof response === 'object' && response !== null) {
+                            responseContent = response.content || response.text || (response.message && response.message.content) || JSON.stringify(response); // Handle various structures
+                        } else { throw new Error("Unexpected AI response format."); }
 
-                    responseContent = String(responseContent).trim().replace(/^```json\s*|```$/g, '').trim();
+                        responseContent = String(responseContent).trim().replace(/^```json\s*|```$/g, '').trim();
 
-                    if (!responseContent) { throw new Error("Received empty content from AI after cleaning."); }
+                        if (!responseContent) { throw new Error("Received empty content from AI after cleaning."); }
 
-                    aiResult = JSON.parse(responseContent);
-                    console.log("Parsed AI Result:", aiResult);
+                        aiResult = JSON.parse(responseContent);
+                        console.log("Parsed AI Result:", aiResult);
 
-                    if (!aiResult || typeof aiResult !== 'object' || !Array.isArray(aiResult.items)) {
-                        throw new Error("Invalid JSON structure: 'items' array not found or invalid.");
-                    }
-
-                    lastAIResponse = aiResult;
-                    displayAIResults(aiResult.items);
-                    
-                    // Track successful scan
-                    if (window.easyBinAnalytics && aiResult.items && aiResult.items.length > 0) {
-                        const item = aiResult.items[0];
-                        if (item.primaryBin !== 'error') {
-                            window.easyBinAnalytics.trackScanSuccess(
-                                item.itemName, 
-                                item.primaryConfidence, 
-                                item.primaryBin, 
-                                userCountry, 
-                                currentLanguage
-                            );
-                        } else {
-                            window.easyBinAnalytics.trackScanFailure(item.reasoning || 'AI identification failed', userCountry, currentLanguage);
+                        if (!aiResult || typeof aiResult !== 'object' || !Array.isArray(aiResult.items)) {
+                            throw new Error("Invalid JSON structure: 'items' array not found or invalid.");
                         }
-                    }
 
-                } catch (parseError) {
-                    console.error('AI Processing/Parsing Error:', parseError);
-                    console.error('Problematic AI Response Content:', responseContent);
-                    const currentLang = languageSelect.value || 'en'; // Get current lang for error msg
-                    displayError("errorAIStructure", `${parseError.message}. Response: ${responseContent.substring(0, 100)}...`);
+                        lastAIResponse = aiResult;
+                        displayAIResults(aiResult.items);
+
+                        // Track successful scan
+                        if (window.easyBinAnalytics && aiResult.items && aiResult.items.length > 0) {
+                            const item = aiResult.items[0];
+                            if (item.primaryBin !== 'error') {
+                                window.easyBinAnalytics.trackScanSuccess(
+                                    item.itemName,
+                                    item.primaryConfidence,
+                                    item.primaryBin,
+                                    userCountry,
+                                    currentLanguage
+                                );
+                            } else {
+                                window.easyBinAnalytics.trackScanFailure(item.reasoning || 'AI identification failed', userCountry, currentLanguage);
+                            }
+                        }
+
+                    } catch (parseError) {
+                        console.error('AI Processing/Parsing Error:', parseError);
+                        console.error('Problematic AI Response Content:', responseContent);
+                        displayError("errorAIStructure", `${parseError.message}. Response: ${responseContent.substring(0, 100)}...`);
+                        lastResultItems = null;
+                        lastAIResponse = null;
+                    }
+                })
+                .catch(error => {
+                    console.error('AI Call Error:', error);
+                    const currentLang = languageSelect.value || 'en';
+                    displayError("errorAIAnalyze", error.message || (translations[currentLang]?.errorUnknownAI || 'Unknown AI error.'));
                     lastResultItems = null;
                     lastAIResponse = null;
-                }
-            })
-            .catch(error => {
-                console.error('AI Call Error:', error);
-                const currentLang = languageSelect.value || 'en';
-                displayError("errorAIAnalyze", error.message || (translations[currentLang]?.errorUnknownAI || 'Unknown AI error.'));
-                lastResultItems = null;
-                lastAIResponse = null;
-            })
-            .finally(() => {
-                // Spinner is managed by displayAIResults/displayError
-                scanButton.disabled = false;
-            });
+                })
+                .finally(() => {
+                    // Spinner is managed by displayAIResults/displayError
+                    scanButton.disabled = false;
+                });
         } else {
             // Real AI system using Pollinations.AI vision
             console.log("Puter.js not available, using Pollinations.AI vision system");
-            
+
             // Call Pollinations.AI for real vision analysis
-            callPollinationsAI(prompt, imageData).then(fallbackResponse => {
-                console.log("Pollinations AI Response:", fallbackResponse);
-                
-                try {
-                    const aiResult = JSON.parse(fallbackResponse.content);
-                    lastAIResponse = fallbackResponse;
-                    
-                    if (aiResult.items && aiResult.items.length > 0) {
-                        displayAIResults(aiResult.items);
-                        
-                        // Save to history (for successful scans)
-                        const item = aiResult.items[0];
-                        if (item.primaryBin !== 'error') {
-                            saveResultToHistory(item, lastImageDataUrl);
-                            
-                            // Track successful scan
-                            if (window.easyBinAnalytics) {
-                                window.easyBinAnalytics.trackScanSuccess(
-                                    item.itemName, 
-                                    item.primaryConfidence, 
-                                    item.primaryBin,
-                                    userCountry, 
-                                    currentLanguage
-                                );
+            callPollinationsAI(prompt, imageData)
+                .then(fallbackResponse => {
+                    console.log("Pollinations AI Response:", fallbackResponse);
+
+                    try {
+                        const aiResult = JSON.parse(fallbackResponse.content);
+                        lastAIResponse = fallbackResponse;
+
+                        if (aiResult.items && aiResult.items.length > 0) {
+                            displayAIResults(aiResult.items);
+
+                            // Save to history (for successful scans)
+                            const item = aiResult.items[0];
+                            if (item.primaryBin !== 'error') {
+                                saveResultToHistory(item, lastImageDataUrl);
+
+                                // Track successful scan
+                                if (window.easyBinAnalytics) {
+                                    window.easyBinAnalytics.trackScanSuccess(
+                                        item.itemName,
+                                        item.primaryConfidence,
+                                        item.primaryBin,
+                                        userCountry,
+                                        currentLanguage
+                                    );
+                                }
                             }
+                        } else {
+                            displayError("errorAINoItemFound");
+                            lastResultItems = null;
                         }
-                    } else {
-                        displayError("errorAINoItemFound");
+                    } catch (parseError) {
+                        console.error('Pollinations AI JSON Parse Error:', parseError);
+                        displayError("errorAIStructure");
                         lastResultItems = null;
                     }
-                } catch (parseError) {
-                    console.error('Fallback AI JSON Parse Error:', parseError);
-                    displayError("errorAIStructure");
+                })
+                .catch(apiError => {
+                    console.error("Pollinations AI API Error:", apiError);
+                    displayError("errorAIAnalyze", apiError.message);
                     lastResultItems = null;
-                }
-                
-                scanButton.disabled = false;
-            }, 1500); // Simulate AI processing delay
+                })
+                .finally(() => {
+                    hideSpinner();
+                    scanButton.disabled = false;
+                });
         }
 
     } catch (error) {
         console.error("Error during capture/AI call setup:", error);
-        const currentLang = languageSelect.value || 'en';
         displayError("errorCapture", error.message);
         hideSpinner(); // Ensure spinner hidden if setup fails
         lastResultItems = null;
@@ -1575,8 +1794,8 @@ Example for a successful identification:
 async function detectUserCountry() {
     try {
         // Prefer Puter Geo API if available
-        if (puter?.geo?.get) {
-            const geoInfo = await puter.geo.get();
+        if (typeof window.puter !== 'undefined' && window.puter?.geo?.get) {
+            const geoInfo = await window.puter.geo.get();
             if (geoInfo?.countryCode) {
                 const country = geoInfo.countryCode.toLowerCase();
                 console.log("Country detected via Puter Geo:", country);
@@ -1626,7 +1845,7 @@ async function initApp() {
     if (welcomeState) welcomeState.classList.remove('hidden');
     if (resultContent) resultContent.classList.add('hidden');
     if (resultCard) resultCard.classList.remove('hidden');
-    
+
     // Initialize app status
     updateAppStatus('Initializing...', 'loading');
 
@@ -1648,30 +1867,30 @@ async function initApp() {
 
     // 2. Update UI text based on current language
     updateUIText();
-    
+
     // 3. Enable country change event listener
-    countrySelect.addEventListener('change', function() {
+    countrySelect.addEventListener('change', function () {
         userCountry = countrySelect.value;
         console.log("Country changed to:", userCountry.toUpperCase());
-        
+
         // Track country change
         if (window.easyBinAnalytics) {
             window.easyBinAnalytics.trackSettingChange('country', 'previous', userCountry);
         }
     });
-    
+
     // 4. Enable language change listener
-    languageSelect.addEventListener('change', function() {
+    languageSelect.addEventListener('change', function () {
         currentLanguage = languageSelect.value;
         console.log("Language changed to:", currentLanguage);
         updateUIText();
-        
+
         // Track language change
         if (window.easyBinAnalytics) {
             window.easyBinAnalytics.trackSettingChange('language', 'previous', currentLanguage);
         }
     });
-    
+
     // 5. Camera setup - wait for user to click "Open Camera" button
     updateAppStatus('Click "Open Camera" to start', 'info');
 }
@@ -1693,16 +1912,23 @@ async function initializeCamera() {
             video.srcObject = stream;
             await video.play();
             console.log("Video stream started successfully.");
-            
+
             // Make video visible
             video.classList.remove('hidden');
             console.log("Camera video is now visible");
-            
+
             // Hide open camera button container since camera is now active
             if (openCameraContainer) {
                 openCameraContainer.classList.add('hidden');
             }
-            
+
+            // Show identify button with animation
+            const identifyButtonContainer = document.getElementById('identify-button-container');
+            if (identifyButtonContainer) {
+                identifyButtonContainer.classList.remove('hidden');
+                identifyButtonContainer.classList.add('animate-fade-in');
+            }
+
             // Enable scan button and update status immediately
             console.log("Enabling scan button");
             console.log("scanButton element:", scanButton);
@@ -1710,12 +1936,12 @@ async function initializeCamera() {
             scanButton.disabled = false;
             console.log("scanButton after:", scanButton?.disabled);
             updateAppStatus('Ready to scan!', 'ready');
-            
+
             // Track successful camera setup
             if (window.easyBinAnalytics) {
                 window.easyBinAnalytics.trackEvent('camera_setup_success', { country: userCountry, language: currentLanguage });
             }
-            
+
             // Also listen for loadeddata as backup
             video.addEventListener('loadeddata', () => {
                 console.log("Video loaded data event fired");
@@ -1723,13 +1949,13 @@ async function initializeCamera() {
                 scanButton.disabled = false;
                 updateAppStatus('Ready to scan!', 'ready');
             });
-            
+
             // Start loading state animation if available
             const loadingAnimation = document.querySelector('.loading-dots');
             if (loadingAnimation) {
                 loadingAnimation.classList.add('animate');
             }
-            
+
         } catch (err) {
             console.error("Camera access denied or failed:", err);
             updateAppStatus('Camera access required. Please allow camera permissions.', 'error');
@@ -1737,7 +1963,7 @@ async function initializeCamera() {
             if (permissionsHelp) {
                 permissionsHelp.classList.remove('hidden');
             }
-            
+
             // Track camera setup failure
             if (window.easyBinAnalytics) {
                 window.easyBinAnalytics.trackError('camera_setup_failure', err.message, { country: userCountry, language: currentLanguage });
@@ -1751,30 +1977,48 @@ async function initializeCamera() {
 }
 
 // Add retry camera functionality
-document.getElementById('retry-camera')?.addEventListener('click', function() {
+document.getElementById('retry-camera')?.addEventListener('click', function () {
     const permissionDenied = document.getElementById('camera-permission-denied');
     if (permissionDenied) {
         permissionDenied.classList.add('hidden');
     }
-    
+
     // Re-initialize camera
     initializeCamera();
 });
 
+// --- Keyboard shortcuts ---
+document.addEventListener('keydown', function (event) {
+    // Spacebar to take picture (when camera is active and identify button is visible)
+    if (event.code === 'Space') {
+        const identifyButtonContainer = document.getElementById('identify-button-container');
+        const scanButton = document.getElementById('scan-button');
+
+        // Check if identify button is visible and scan button is enabled
+        if (identifyButtonContainer && !identifyButtonContainer.classList.contains('hidden') &&
+            scanButton && !scanButton.disabled) {
+
+            event.preventDefault(); // Prevent page scroll
+            console.log("Spacebar pressed - triggering scan");
+            scanButton.click(); // Trigger the scan button click
+        }
+    }
+});
+
 // --- Initialize when DOM is ready ---
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     console.log("DOM loaded, initializing app...");
-    
+
     // Initialize analytics if available
     if (window.easyBinAnalytics) {
         window.easyBinAnalytics.trackAppStart();
     }
-    
+
     // Set up Open Camera button event listener now that DOM is ready
     const openCameraBtn = document.getElementById('open-camera-button');
     if (openCameraBtn) {
         console.log("Setting up Open Camera button event listener");
-        openCameraBtn.addEventListener('click', function() {
+        openCameraBtn.addEventListener('click', function () {
             console.log("Open Camera button clicked");
             // Initialize camera
             initializeCamera();
@@ -1782,7 +2026,10 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         console.error("Open Camera button not found!");
     }
-    
+
+    // Initialize theme toggle
+    initializeThemeToggle();
+
     initApp();
 });
 
@@ -1815,7 +2062,7 @@ window.addEventListener('offline', () => {
 });
 
 // Try to detect potential storage issues early
-window.addEventListener('load', function() {
+window.addEventListener('load', function () {
     // Wait a bit after app initialization to check storage
     setTimeout(() => {
         if (navigator.storage && navigator.storage.estimate) {
@@ -1823,7 +2070,7 @@ window.addEventListener('load', function() {
                 const usedPercent = (estimate.usage / estimate.quota) * 100;
                 if (usedPercent > 80) {
                     console.warn(`Storage is ${usedPercent.toFixed(1)}% full. This may cause issues with saving history.`);
-                    
+
                     // If extremely full, try to clean up proactively
                     if (usedPercent > 95) {
                         console.warn("Storage critically full. Attempting cleanup...");
@@ -1843,4 +2090,103 @@ window.addEventListener('load', function() {
             });
         }
     }, 2000);
+});
+// ============================
+// API Keys Modal Functionality
+// ============================
+
+const apiKeysButton = document.getElementById('api-keys-button');
+const apiKeysModal = document.getElementById('api-keys-modal');
+const saveKeysButton = document.getElementById('save-api-keys');
+const clearKeysButton = document.getElementById('clear-api-keys');
+const openrouterKeyInput = document.getElementById('openrouter-key');
+const googleGeminiKeyInput = document.getElementById('google-gemini-key');
+const activeProvidersList = document.getElementById('active-providers-list');
+
+// Open API Keys Modal
+if (apiKeysButton) {
+    apiKeysButton.addEventListener('click', () => {
+        const openrouterKey = apiKeyManager.getKey('openrouter') || '';
+        const googleKey = apiKeyManager.getKey('google') || '';
+
+        if (openrouterKeyInput) openrouterKeyInput.value = openrouterKey;
+        if (googleGeminiKeyInput) googleGeminiKeyInput.value = googleKey;
+
+        updateActiveProvidersList();
+        apiKeysModal.classList.remove('hidden');
+    });
+}
+
+// Save API Keys
+if (saveKeysButton) {
+    saveKeysButton.addEventListener('click', () => {
+        const openrouterKey = openrouterKeyInput.value.trim();
+        const googleKey = googleGeminiKeyInput.value.trim();
+
+        if (openrouterKey) {
+            apiKeyManager.setKey('openrouter', openrouterKey);
+        } else {
+            apiKeyManager.removeKey('openrouter');
+        }
+
+        if (googleKey) {
+            apiKeyManager.setKey('google', googleKey);
+        } else {
+            apiKeyManager.removeKey('google');
+        }
+
+        // Reinitialize vision client
+        const newClient = new MultiProviderVisionClient(apiKeyManager);
+        Object.assign(visionClient, newClient);
+
+        updateActiveProvidersList();
+
+        const originalText = saveKeysButton.textContent;
+        saveKeysButton.textContent = '✅ Saved!';
+        setTimeout(() => saveKeysButton.textContent = originalText, 2000);
+    });
+}
+
+// Clear all API Keys
+if (clearKeysButton) {
+    clearKeysButton.addEventListener('click', () => {
+        if (confirm('Clear all API keys? This cannot be undone.')) {
+            apiKeyManager.clearAll();
+            if (openrouterKeyInput) openrouterKeyInput.value = '';
+            if (googleGeminiKeyInput) googleGeminiKeyInput.value = '';
+
+            const newClient = new MultiProviderVisionClient(apiKeyManager);
+            Object.assign(visionClient, newClient);
+            updateActiveProvidersList();
+        }
+    });
+}
+
+// Update active providers list
+function updateActiveProvidersList() {
+    if (!activeProvidersList) return;
+
+    const providers = visionClient.getProviders();
+    const providerHTML = providers.map(p => {
+        const icon = p.requiresAuth ? '🔑' : '🆓';
+        const badge = p.requiresAuth ? 'Premium' : 'Free';
+        const color = p.requiresAuth ? 'var(--primary-color)' : 'var(--green)';
+
+        return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color)">
+                <div><span>${icon}</span> <strong>${p.name}</strong></div>
+                <span style="font-size:0.8em;padding:2px 8px;background:${color};color:white;border-radius:12px">${badge}</span>
+            </div>`;
+    }).join('');
+
+    activeProvidersList.innerHTML = `<div style="margin-bottom:8px;color:var(--text-secondary);font-size:0.85em">${providers.length} provider${providers.length > 1 ? 's' : ''} active</div>${providerHTML}`;
+}
+
+// Close modal handlers
+apiKeysModal?.addEventListener('click', e => {
+    if (e.target === apiKeysModal) apiKeysModal.classList.add('hidden');
+});
+
+// Initialize
+updateActiveProvidersList();
+
 });
