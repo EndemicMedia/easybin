@@ -2108,9 +2108,12 @@ if (apiKeysButton) {
     apiKeysButton.addEventListener('click', () => {
         const openrouterKey = apiKeyManager.getKey('openrouter') || '';
         const googleKey = apiKeyManager.getKey('google') || '';
+        const pollinationsKey = apiKeyManager.getKey('pollinations') || '';
 
         if (openrouterKeyInput) openrouterKeyInput.value = openrouterKey;
         if (googleGeminiKeyInput) googleGeminiKeyInput.value = googleKey;
+        const pollinationsKeyInput = document.getElementById('pollinations-key');
+        if (pollinationsKeyInput) pollinationsKeyInput.value = pollinationsKey;
 
         updateActiveProvidersList();
         apiKeysModal.classList.remove('hidden');
@@ -2122,6 +2125,8 @@ if (saveKeysButton) {
     saveKeysButton.addEventListener('click', () => {
         const openrouterKey = openrouterKeyInput.value.trim();
         const googleKey = googleGeminiKeyInput.value.trim();
+        const pollinationsKeyInput = document.getElementById('pollinations-key');
+        const pollinationsKey = pollinationsKeyInput ? pollinationsKeyInput.value.trim() : '';
 
         if (openrouterKey) {
             apiKeyManager.setKey('openrouter', openrouterKey);
@@ -2133,6 +2138,12 @@ if (saveKeysButton) {
             apiKeyManager.setKey('google', googleKey);
         } else {
             apiKeyManager.removeKey('google');
+        }
+
+        if (pollinationsKey) {
+            apiKeyManager.setKey('pollinations', pollinationsKey);
+        } else {
+            apiKeyManager.removeKey('pollinations');
         }
 
         // Reinitialize vision client
@@ -2150,41 +2161,87 @@ if (saveKeysButton) {
 // Clear all API Keys
 if (clearKeysButton) {
     clearKeysButton.addEventListener('click', () => {
-        if (confirm('Clear all API keys? This cannot be undone.')) {
+        if (confirm('Are you sure you want to clear all API keys?')) {
             apiKeyManager.clearAll();
             if (openrouterKeyInput) openrouterKeyInput.value = '';
             if (googleGeminiKeyInput) googleGeminiKeyInput.value = '';
+            const pollinationsKeyInput = document.getElementById('pollinations-key');
+            if (pollinationsKeyInput) pollinationsKeyInput.value = '';
 
+            // Reinitialize vision client
             const newClient = new MultiProviderVisionClient(apiKeyManager);
             Object.assign(visionClient, newClient);
+
             updateActiveProvidersList();
+
+            const originalText = clearKeysButton.textContent;
+            clearKeysButton.textContent = '✅ Cleared!';
+            setTimeout(() => clearKeysButton.textContent = originalText, 2000);
         }
     });
 }
 
-// Update active providers list
+// Close API Keys Modal
+const closeApiKeysModal = document.getElementById('close-api-keys-modal');
+if (closeApiKeysModal) {
+    closeApiKeysModal.addEventListener('click', () => {
+        apiKeysModal.classList.add('hidden');
+    });
+}
+
+// Close modal when clicking outside
+if (apiKeysModal) {
+    apiKeysModal.addEventListener('click', (e) => {
+        if (e.target === apiKeysModal) {
+            apiKeysModal.classList.add('hidden');
+        }
+    });
+}
+
+// Update Active Providers List
 function updateActiveProvidersList() {
     if (!activeProvidersList) return;
 
-    const providers = visionClient.getProviders();
-    const providerHTML = providers.map(p => {
-        const icon = p.requiresAuth ? '🔑' : '🆓';
-        const badge = p.requiresAuth ? 'Premium' : 'Free';
-        const color = p.requiresAuth ? 'var(--primary-color)' : 'var(--green)';
+    const providers = visionClient.providers;
+    const configuredKeys = apiKeyManager.getConfiguredProviders();
 
-        return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color)">
-                <div><span>${icon}</span> <strong>${p.name}</strong></div>
-                <span style="font-size:0.8em;padding:2px 8px;background:${color};color:white;border-radius:12px">${badge}</span>
-            </div>`;
-    }).join('');
+    let html = '<div class="space-y-1">';
 
-    activeProvidersList.innerHTML = `<div style="margin-bottom:8px;color:var(--text-secondary);font-size:0.85em">${providers.length} provider${providers.length > 1 ? 's' : ''} active</div>${providerHTML}`;
+    // Free providers (always available)
+    html += '<div class="flex items-center gap-2">';
+    html += '<span class="text-green-600 dark:text-green-400">✓</span>';
+    html += '<span>Pollinations (Free)</span>';
+    html += '</div>';
+
+    // Pollinations with API key
+    if (configuredKeys.includes('pollinations')) {
+        html += '<div class="flex items-center gap-2">';
+        html += '<span class="text-green-600 dark:text-green-400">✓</span>';
+        html += '<span>Pollinations (With API Key - Better Rate Limits)</span>';
+        html += '</div>';
+    }
+
+    // Google Gemini
+    if (configuredKeys.includes('google')) {
+        html += '<div class="flex items-center gap-2">';
+        html += '<span class="text-green-600 dark:text-green-400">✓</span>';
+        html += '<span>Google Gemini (4 models)</span>';
+        html += '</div>';
+    }
+
+    // OpenRouter
+    if (configuredKeys.includes('openrouter')) {
+        html += '<div class="flex items-center gap-2">';
+        html += '<span class="text-green-600 dark:text-green-400">✓</span>';
+        html += '<span>OpenRouter (6 free models)</span>';
+        html += '</div>';
+    }
+
+    const totalProviders = providers.length;
+    html += `</div><div class="mt-2 text-xs text-gray-500 dark:text-gray-400">Total: ${totalProviders} providers available</div>`;
+
+    activeProvidersList.innerHTML = html;
 }
-
-// Close modal handlers
-apiKeysModal?.addEventListener('click', e => {
-    if (e.target === apiKeysModal) apiKeysModal.classList.add('hidden');
-});
 
 // Initialize
 updateActiveProvidersList();

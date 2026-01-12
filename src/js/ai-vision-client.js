@@ -30,24 +30,26 @@ class MultiProviderVisionClient {
      */
     configureProviders() {
         const providers = [
-            // Always available - Pollinations (no auth required)
+            // Pollinations - free tier with optional API key for better rate limits
+            {
+                name: 'pollinations-openai',
+                endpoint: 'https://gen.pollinations.ai/v1/chat/completions',
+                model: 'openai',
+                adapter: new window.PollinationsAdapter('openai'),
+                maxRetries: 2,
+                timeout: 30000,
+                requiresAuth: false, // Optional - works without key but has rate limits
+                authType: 'bearer' // Use Bearer token when key is available
+            },
             {
                 name: 'pollinations-gemini',
-                endpoint: 'https://text.pollinations.ai/openai',
+                endpoint: 'https://gen.pollinations.ai/v1/chat/completions',
                 model: 'gemini',
                 adapter: new window.PollinationsAdapter('gemini'),
                 maxRetries: 2,
                 timeout: 30000,
-                requiresAuth: false
-            },
-            {
-                name: 'pollinations-bidara',
-                endpoint: 'https://text.pollinations.ai/openai',
-                model: 'bidara',
-                adapter: new window.PollinationsAdapter('bidara'),
-                maxRetries: 2,
-                timeout: 30000,
-                requiresAuth: false
+                requiresAuth: false,
+                authType: 'bearer'
             }
         ];
 
@@ -144,94 +146,97 @@ class MultiProviderVisionClient {
                     let fetchUrl = provider.endpoint;
 
                     // Add Authorization based on provider type
-                    if (provider.requiresAuth) {
-                        if (provider.authType === 'bearer') {
-                            // OpenRouter uses Bearer token
-                            const apiKey = this.apiKeyManager?.getKey('openrouter');
-                            if (!apiKey) {
-                                throw new Error('OpenRouter API key required but not configured');
+                    if (provider.requiresAuth || provider.name.includes('pollinations')) {
+                        let apiKey = null;
+
+                        // Get API key based on provider
+                        if (provider.name.includes('google')) {
+                            apiKey = this.apiKeyManager?.getKey('google');
+                        } else if (provider.name.includes('openrouter')) {
+                            apiKey = this.apiKeyManager?.getKey('openrouter');
+                        } else if (provider.name.includes('pollinations')) {
+                            apiKey = this.apiKeyManager?.getKey('pollinations');
+                        }
+
+                        // Add auth header if key is available
+                        if (apiKey) {
+                            if (provider.authType === 'bearer') {
+                                headers['Authorization'] = `Bearer ${apiKey}`;
+                            } else if (provider.authType === 'query') {
+                                // For query param auth (like Gemini), add to URL
+                                fetchUrl += `?key=${apiKey}`;
                             }
-                            headers['Authorization'] = `Bearer ${apiKey}`;
-                        } else if (provider.authType === 'query') {
-                            // Google Gemini uses query parameter
-                            const apiKey = this.apiKeyManager?.getKey('google');
-                            if (!apiKey) {
-                                throw new Error('Google Gemini API key required but not configured');
+
+                            // Make API call
+                            const response = await fetch(fetchUrl, {
+                                method: 'POST',
+                                headers: headers,
+                                body: JSON.stringify(requestPayload),
+                                signal: AbortSignal.timeout(provider.timeout)
+                            });
+
+                            const responseTime = Date.now() - startTime;
+
+                            // Handle rate limiting
+                            if (response.status === 429) {
+                                console.log(`[MultiProvider] ${provider.name} rate limited (429), moving to next provider`);
+                                this.providerStats[provider.name].failed++;
+                                this.providerStats[provider.name].lastFailure = Date.now();
+                                break; // Skip to next provider immediately on rate limit
                             }
-                            fetchUrl = `${provider.endpoint}?key=${apiKey}`;
+
+                            // Handle other errors
+                            if (!response.ok) {
+                                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                            }
+
+                            // Parse response
+                            const data = await response.json();
+                            const parsed = provider.adapter.parseResponse(data);
+
+                            // Success!
+                            this.providerStats[provider.name].success++;
+                            console.log(`[MultiProvider] ✅ ${provider.name} succeeded in ${responseTime}ms`);
+
+                            return {
+                                content: parsed.content,
+                                provider: provider.name,
+                                timestamp: new Date().toISOString(),
+                                responseTime: responseTime,
+                                attempt: attempt + 1
+                            };
+
+                        } catch (error) {
+                            lastError = error;
+                            this.providerStats[provider.name].failed++;
+                            this.providerStats[provider.name].lastFailure = Date.now();
+
+                            console.warn(`[MultiProvider] ${provider.name} attempt ${attempt + 1}/${provider.maxRetries + 1} failed:`, error.message);
+
+                            // If this was the last retry for this provider, move to next provider
+                            if (attempt === provider.maxRetries) {
+                                attemptedProviders.push(provider.name);
+                                break;
+                            }
+
+                            // Wait before retry (exponential backoff)
+                            const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
+                            await new Promise(resolve => setTimeout(resolve, delay));
                         }
                     }
-
-                    // Make API call
-                    const response = await fetch(fetchUrl, {
-                        method: 'POST',
-                        headers: headers,
-                        body: JSON.stringify(requestPayload),
-                        signal: AbortSignal.timeout(provider.timeout)
-                    });
-
-                    const responseTime = Date.now() - startTime;
-
-                    // Handle rate limiting
-                    if (response.status === 429) {
-                        console.log(`[MultiProvider] ${provider.name} rate limited (429), moving to next provider`);
-                        this.providerStats[provider.name].failed++;
-                        this.providerStats[provider.name].lastFailure = Date.now();
-                        break; // Skip to next provider immediately on rate limit
-                    }
-
-                    // Handle other errors
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-
-                    // Parse response
-                    const data = await response.json();
-                    const parsed = provider.adapter.parseResponse(data);
-
-                    // Success!
-                    this.providerStats[provider.name].success++;
-                    console.log(`[MultiProvider] ✅ ${provider.name} succeeded in ${responseTime}ms`);
-
-                    return {
-                        content: parsed.content,
-                        provider: provider.name,
-                        timestamp: new Date().toISOString(),
-                        responseTime: responseTime,
-                        attempt: attempt + 1
-                    };
-
-                } catch (error) {
-                    lastError = error;
-                    this.providerStats[provider.name].failed++;
-                    this.providerStats[provider.name].lastFailure = Date.now();
-
-                    console.warn(`[MultiProvider] ${provider.name} attempt ${attempt + 1}/${provider.maxRetries + 1} failed:`, error.message);
-
-                    // If this was the last retry for this provider, move to next provider
-                    if (attempt === provider.maxRetries) {
-                        attemptedProviders.push(provider.name);
-                        break;
-                    }
-
-                    // Wait before retry (exponential backoff)
-                    const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
-                    await new Promise(resolve => setTimeout(resolve, delay));
                 }
-            }
-        }
 
         // All providers failed
         const error = new Error(
-            `All vision providers failed after trying: ${attemptedProviders.join(', ')}. Last error: ${lastError?.message || 'Unknown'}`
-        );
-        error.attemptedProviders = attemptedProviders;
-        error.originalError = lastError;
-        throw error;
-    }
-}
+                    `All vision providers failed after trying: ${attemptedProviders.join(', ')}. Last error: ${lastError?.message || 'Unknown'}`
+                );
+                error.attemptedProviders = attemptedProviders;
+                error.originalError = lastError;
+                throw error;
+            }
+        }
 
-// Export for Node.js
-if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { MultiProviderVisionClient };
-}
+        // Export for Node.js
+        if (typeof module !== 'undefined' && module.exports) {
+            module.exports = { MultiProviderVisionClient };
+        }

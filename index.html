@@ -733,6 +733,118 @@
             }, 60000); // Check every minute
         }
     </script>
+    <!-- API Keys Modal -->
+    <div id="api-keys-modal"
+        class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div
+            class="glass-card bg-white/95 dark:bg-gray-900/95 rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <!-- Modal Header -->
+            <div
+                class="sticky top-0 bg-white/95 dark:bg-gray-900/95 border-b border-gray-200 dark:border-gray-700 p-6 rounded-t-2xl">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                            🔑 API Keys Configuration
+                        </h2>
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            Configure your API keys for premium vision providers
+                        </p>
+                    </div>
+                    <button id="close-api-keys-modal"
+                        class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 text-2xl">
+                        ×
+                    </button>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 space-y-6">
+                <!-- Pollinations API Key -->
+                <div class="space-y-2">
+                    <label for="pollinations-key" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Pollinations API Key (Optional)
+                        <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">pk_...</span>
+                    </label>
+                    <input type="password" id="pollinations-key"
+                        class="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                        placeholder="pk_9sbL41ofRXSoaOC2">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Get yours at <a href="https://enter.pollinations.ai" target="_blank"
+                            class="text-emerald-600 dark:text-emerald-400 hover:underline">enter.pollinations.ai</a>.
+                        Free tier works without a key (rate-limited). Publishable keys (pk_) are safe for client-side
+                        use.
+                    </p>
+                </div>
+
+                <!-- OpenRouter API Key -->
+                <div class="space-y-2">
+                    <label for="openrouter-key" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        OpenRouter API Key (Optional)
+                        <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">sk-or-v1-...</span>
+                    </label>
+                    <input type="password" id="openrouter-key"
+                        class="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                        placeholder="sk-or-v1-...">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Get yours at <a href="https://openrouter.ai/keys" target="_blank"
+                            class="text-blue-600 dark:text-blue-400 hover:underline">openrouter.ai/keys</a>.
+                        Free tier: 50 requests/day. Adds 6 free vision models.
+                    </p>
+                </div>
+
+                <!-- Google Gemini API Key -->
+                <div class="space-y-2">
+                    <label for="google-gemini-key" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                        Google Gemini API Key (Optional)
+                        <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">AIzaSy...</span>
+                    </label>
+                    <input type="password" id="google-gemini-key"
+                        class="w-full p-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all"
+                        placeholder="AIzaSy...">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Get yours at <a href="https://makersuite.google.com/app/apikey" target="_blank"
+                            class="text-purple-600 dark:text-purple-400 hover:underline">Google AI Studio</a>.
+                        Free tier available. Adds 4 fast Gemini models (1.6s - 4.8s).
+                    </p>
+                </div>
+
+                <!-- Active Providers List -->
+                <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Active Providers:</h3>
+                    <div id="active-providers-list" class="text-sm text-gray-600 dark:text-gray-400">
+                        Loading...
+                    </div>
+                </div>
+
+                <!-- Security Note -->
+                <div
+                    class="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div class="flex items-start gap-2">
+                        <i class="fas fa-shield-alt text-blue-600 dark:text-blue-400 mt-0.5"></i>
+                        <div class="text-xs text-blue-800 dark:text-blue-300">
+                            <strong>Security:</strong> Keys are stored locally in your browser and never sent to our
+                            servers.
+                            They're only used to authenticate with the respective AI providers.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div
+                class="sticky bottom-0 bg-white/95 dark:bg-gray-900/95 border-t border-gray-200 dark:border-gray-700 p-6 rounded-b-2xl flex gap-3">
+                <button id="save-api-keys"
+                    class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200 shadow-lg hover:shadow-xl">
+                    💾 Save Keys
+                </button>
+                <button id="clear-api-keys"
+                    class="bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200">
+                    🗑️ Clear All
+                </button>
+            </div>
+        </div>
+    </div>
+
 </body>
 
 </html>
