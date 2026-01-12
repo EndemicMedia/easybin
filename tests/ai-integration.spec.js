@@ -6,7 +6,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Test configuration
-const API_ENDPOINT = 'https://text.pollinations.ai/openai';
+const API_ENDPOINT = 'https://gen.pollinations.ai/v1/chat/completions';
 const TIMEOUT = 30000; // 30 seconds per API call
 const MAX_RETRY_TIME = 120000; // 2 minutes total retry time
 const RETRY_DELAY = 5000; // 5 seconds between retries
