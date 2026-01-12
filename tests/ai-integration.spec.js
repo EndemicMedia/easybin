@@ -62,8 +62,12 @@ test.describe('Pollinations AI Integration', () => {
     console.log(`📸 Testing with image: ${path.basename(imagePath)} (${(imageBuffer.length / 1024).toFixed(1)}KB)`);
 
     const response = await request.post(API_ENDPOINT, {
+      headers: {
+        'Authorization': `Bearer ${process.env.POLLINATIONS_API_KEY || ''}`,
+        'Content-Type': 'application/json'
+      },
       data: {
-        model: 'gemini', // Gemini 2.5 Flash Lite - has vision support
+        model: 'gemini',
         messages: [{
           role: 'user',
           content: [
@@ -153,6 +157,10 @@ Example for a successful identification:
 
 
     const response = await request.post(API_ENDPOINT, {
+      headers: {
+        'Authorization': `Bearer ${process.env.POLLINATIONS_API_KEY || ''}`,
+        'Content-Type': 'application/json'
+      },
       data: {
         model: 'gemini',
         messages: [{
@@ -235,6 +243,10 @@ Example for a successful identification:
       const base64Image = imageBuffer.toString('base64');
 
       const response = await request.post(API_ENDPOINT, {
+        headers: {
+          'Authorization': `Bearer ${process.env.POLLINATIONS_API_KEY || ''}`,
+          'Content-Type': 'application/json'
+        },
         data: {
           model: 'gemini',
           messages: [{
@@ -286,6 +298,10 @@ Example for a successful identification:
   test('should handle error cases gracefully', async ({ request }) => {
     // Test with invalid base64 (should fail gracefully)
     const response = await request.post(API_ENDPOINT, {
+      headers: {
+        'Authorization': `Bearer ${process.env.POLLINATIONS_API_KEY || ''}`,
+        'Content-Type': 'application/json'
+      },
       data: {
         model: 'gemini',
         messages: [{
@@ -330,6 +346,10 @@ Example for a successful identification:
 
     try {
       await request.post(API_ENDPOINT, {
+        headers: {
+          'Authorization': `Bearer ${process.env.POLLINATIONS_API_KEY || ''}`,
+          'Content-Type': 'application/json'
+        },
         data: {
           model: 'gemini',
           messages: [{
@@ -373,6 +393,10 @@ test.describe('API Response Validation', () => {
     const base64Image = imageBuffer.toString('base64');
 
     const response = await request.post(API_ENDPOINT, {
+      headers: {
+        'Authorization': `Bearer ${process.env.POLLINATIONS_API_KEY || ''}`,
+        'Content-Type': 'application/json'
+      },
       data: {
         model: 'gemini',
         messages: [{
