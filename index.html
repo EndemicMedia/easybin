@@ -71,13 +71,22 @@
                             <i class="fas fa-cog text-2xl mr-3 text-gray-700 dark:text-white/90"></i>
                             <h3 class="text-xl font-bold text-gray-900 dark:text-white">Controls</h3>
                         </div>
-                        <!-- Animated Theme Toggle moved here -->
-                        <button id="animated-theme-toggle"
-                            class="animated-theme-toggler bg-white/20 dark:bg-black/40 border-2 border-white/30 dark:border-white/20"
-                            aria-label="Toggle theme" title="Toggle dark/light mode">
-                            <i id="theme-toggle-icon" class="fas fa-sun theme-icon text-yellow-500 dark:text-blue-300"
-                                aria-hidden="true"></i>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <!-- API Keys Button -->
+                            <button id="api-keys-button"
+                                class="animated-theme-toggler bg-white/20 dark:bg-black/40 border-2 border-white/30 dark:border-white/20"
+                                aria-label="Configure API Keys" title="Configure API Keys">
+                                🔑
+                            </button>
+                            <!-- Animated Theme Toggle -->
+                            <button id="animated-theme-toggle"
+                                class="animated-theme-toggler bg-white/20 dark:bg-black/40 border-2 border-white/30 dark:border-white/20"
+                                aria-label="Toggle theme" title="Toggle dark/light mode">
+                                <i id="theme-toggle-icon"
+                                    class="fas fa-sun theme-icon text-yellow-500 dark:text-blue-300"
+                                    aria-hidden="true"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -314,10 +323,6 @@
                                         d="M12 1v6m0 6v6m5.66-13.66l-4.24 4.24m-2.82 2.82l-4.24 4.24m13.66 1.42l-4.24-4.24m-2.82-2.82l-4.24-4.24">
                                     </path>
                                 </svg>
-                            </button>
-                            <button id="api-keys-button" class="settings-button" aria-label="API Keys"
-                                title="Configure API Keys">
-                                🔑
                             </button>
                         </div>
                     </div>
