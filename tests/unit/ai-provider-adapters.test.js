@@ -4,16 +4,21 @@
  */
 
 describe('Provider Adapters', () => {
-    let adapters;
+    const {
+        PollinationsAdapter,
+        HuggingFaceAdapter,
+        JinaAdapter,
+        OpenRouterAdapter,
+        GeminiAdapter
+    } = require('../../src/js/ai-provider-adapters');
 
     beforeEach(() => {
-        // Will be implemented after tests are defined
-        adapters = require('../ai-provider-adapters');
+        // The adapters are now directly imported
     });
 
     describe('PollinationsAdapter', () => {
         test('should format request for Pollinations API', () => {
-            const adapter = new adapters.PollinationsAdapter('gemini');
+            const adapter = new PollinationsAdapter('gemini');
             const request = adapter.formatRequest('test prompt', 'base64image');
 
             expect(request.model).toBe('gemini');

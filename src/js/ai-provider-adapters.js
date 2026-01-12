@@ -226,31 +226,71 @@ class OpenRouterAdapter extends BaseAdapter {
         }
 
         return {
-          ]
+            content: content
+        };
+    }
+}
+
+/**
+ * Adapter for Google Gemini API
+ * Supports Gemini vision models (2.5 Flash, 2.0 Flash, etc.)
+ */
+class GeminiAdapter extends BaseAdapter {
+    constructor(model = 'models/gemini-2.5-flash') {
+        super();
+        this.model = model;
+    }
+
+    formatRequest(prompt, imageData) {
+        super.formatRequest(prompt, imageData);
+
+        // Clean base64 if it has data URL prefix
+        let base64Image = imageData;
+        if (imageData.startsWith('data:')) {
+            const base64Match = imageData.match(/,(.+)$/);
+            base64Image = base64Match ? base64Match[1] : imageData;
         }
-      ]
-    };
-}
 
-parseResponse(response) {
-    super.parseResponse(response);
-
-    if (!response.candidates || !response.candidates[0]) {
-        throw new Error('Invalid Gemini API response structure');
+        // Gemini API format
+        return {
+            contents: [
+                {
+                    parts: [
+                        {
+                            text: prompt
+                        },
+                        {
+                            inline_data: {
+                                mime_type: 'image/jpeg',
+                                data: base64Image
+                            }
+                        }
+                    ]
+                }
+            ]
+        };
     }
 
-    const candidate = response.candidates[0];
-    if (!candidate.content || !candidate.content.parts || !candidate.content.parts[0]) {
-        throw new Error('Invalid Gemini content structure');
+    parseResponse(response) {
+        super.parseResponse(response);
+
+        if (!response.candidates || !response.candidates[0]) {
+            throw new Error('Invalid Gemini API response structure');
+        }
+
+        const candidate = response.candidates[0];
+        if (!candidate.content || !candidate.content.parts || !candidate.content.parts[0]) {
+            throw new Error('Invalid Gemini content structure');
+        }
+
+        const content = candidate.content.parts[0].text;
+
+        return {
+            content: content
+        };
     }
-
-    const content = candidate.content.parts[0].text;
-
-    return {
-        content: content
-    };
 }
-}
+
 
 // Export for Node.js
 if (typeof module !== 'undefined' && module.exports) {
@@ -261,4 +301,13 @@ if (typeof module !== 'undefined' && module.exports) {
         OpenRouterAdapter,
         GeminiAdapter
     };
+}
+
+// Export for browser (attach to window)
+if (typeof window !== 'undefined') {
+    window.PollinationsAdapter = PollinationsAdapter;
+    window.HuggingFaceAdapter = HuggingFaceAdapter;
+    window.JinaAdapter = JinaAdapter;
+    window.OpenRouterAdapter = OpenRouterAdapter;
+    window.GeminiAdapter = GeminiAdapter;
 }

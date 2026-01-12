@@ -8,7 +8,7 @@ describe('MultiProviderVisionClient', () => {
 
     beforeEach(() => {
         // Will be implemented after tests are defined
-        const { MultiProviderVisionClient } = require('../ai-vision-client');
+        const { MultiProviderVisionClient } = require('../../src/js/ai-vision-client');
         client = new MultiProviderVisionClient();
     });
 

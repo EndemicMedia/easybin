@@ -3,16 +3,8 @@
  * Manages rotation across multiple vision API providers
  */
 
-// Import adapters
-const {
-    PollinationsAdapter,
-    HuggingFaceAdapter,
-    JinaAdapter,
-    OpenRouterAdapter,
-    GeminiAdapter
-} = typeof require !== 'undefined'
-        ? require('./ai-provider-adapters')
-        : window;
+// Adapters are loaded from ai-provider-adapters.js and available on window
+// No need to import/declare them here
 
 class MultiProviderVisionClient {
     constructor(apiKeyManager = null) {
@@ -43,7 +35,7 @@ class MultiProviderVisionClient {
                 name: 'pollinations-gemini',
                 endpoint: 'https://text.pollinations.ai/openai',
                 model: 'gemini',
-                adapter: new PollinationsAdapter('gemini'),
+                adapter: new window.PollinationsAdapter('gemini'),
                 maxRetries: 2,
                 timeout: 30000,
                 requiresAuth: false
@@ -52,7 +44,7 @@ class MultiProviderVisionClient {
                 name: 'pollinations-bidara',
                 endpoint: 'https://text.pollinations.ai/openai',
                 model: 'bidara',
-                adapter: new PollinationsAdapter('bidara'),
+                adapter: new window.PollinationsAdapter('bidara'),
                 maxRetries: 2,
                 timeout: 30000,
                 requiresAuth: false
@@ -73,7 +65,7 @@ class MultiProviderVisionClient {
                     name: `google-gemini-${model.name}`,
                     endpoint: `https://generativelanguage.googleapis.com/v1beta/models/${model.id}:generateContent`,
                     model: `models/${model.id}`,
-                    adapter: new GeminiAdapter(`models/${model.id}`),
+                    adapter: new window.GeminiAdapter(`models/${model.id}`),
                     maxRetries: 2,
                     timeout: model.timeout,
                     requiresAuth: true,
@@ -100,7 +92,7 @@ class MultiProviderVisionClient {
                     name: `openrouter-${model.name}`,
                     endpoint: 'https://openrouter.ai/api/v1/chat/completions',
                     model: model.id,
-                    adapter: new OpenRouterAdapter(model.id),
+                    adapter: new window.OpenRouterAdapter(model.id),
                     maxRetries: 2,
                     timeout: model.timeout,
                     requiresAuth: true,

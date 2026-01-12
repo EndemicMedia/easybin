@@ -6,18 +6,19 @@ const IMAGE_CACHE = 'easybin-images-v1';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
-  '/styles.css',
-  '/magicui-components.css',
-  '/app.js',
-  '/translations.js',
-  '/binStyles.js',
-  '/analytics.js',
-  '/error-monitor.js',
-  '/security.js',
-  '/modern-features.js',
-  '/magicui-components.js',
-  '/bento-integration.js',
-  '/update-app-for-bento.js',
+  '/src/css/styles.css',
+  '/src/js/app.js',
+  '/src/js/translations.js',
+  '/src/js/binStyles.js',
+  '/src/js/analytics.js',
+  '/src/js/error-monitor.js',
+  '/src/js/security.js',
+  '/src/js/modern-features.js',
+  '/src/js/bento-integration.js',
+  '/src/js/ai-provider-adapters.js',
+  '/src/js/ai-vision-client.js',
+  '/src/js/api-key-manager.js',
+  '/src/js/image-compression.js',
   '/manifest.json'
 ];
 
@@ -54,10 +55,10 @@ self.addEventListener('activate', event => {
 self.addEventListener('fetch', event => {
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
-  
+
   // Skip chrome-extension and browser-specific requests
-  if (event.request.url.startsWith('chrome-extension://') || 
-      event.request.url.startsWith('moz-extension://')) {
+  if (event.request.url.startsWith('chrome-extension://') ||
+    event.request.url.startsWith('moz-extension://')) {
     return;
   }
 
@@ -70,7 +71,7 @@ self.addEventListener('fetch', event => {
           if (STATIC_ASSETS.some(asset => event.request.url.includes(asset))) {
             return response;
           }
-          
+
           // For dynamic content, update cache in background
           fetch(event.request)
             .then(fetchResponse => {
@@ -80,8 +81,8 @@ self.addEventListener('fetch', event => {
                   .then(cache => cache.put(event.request, responseClone));
               }
             })
-            .catch(() => {}); // Ignore network errors for background updates
-          
+            .catch(() => { }); // Ignore network errors for background updates
+
           return response;
         }
 
@@ -102,12 +103,12 @@ self.addEventListener('fetch', event => {
           })
           .catch(err => {
             console.log('Fetch failed for:', event.request.url, err);
-            
+
             // Return offline page for navigation requests
             if (event.request.mode === 'navigate') {
               return caches.match('/offline.html');
             }
-            
+
             // Return a basic error response for other requests
             return new Response('Offline - content not available', {
               status: 503,
@@ -133,7 +134,7 @@ async function handleBackgroundSync() {
   try {
     // Get pending requests from IndexedDB or localStorage
     const pendingRequests = await getPendingRequests();
-    
+
     for (const request of pendingRequests) {
       try {
         // Retry the AI request

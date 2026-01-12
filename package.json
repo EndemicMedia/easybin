@@ -12,13 +12,13 @@
     "test:all": "npm run test && npm run test:e2e && npm run test:ai",
     "serve": "npx serve -s . -p 5050",
     "dev": "npx live-server --port=5050",
-    "start": "node server.js",
-    "dev:cors": "node server.js",
-    "vision:list:openrouter": "node vision-api-tester.js list openrouter",
-    "vision:list:gemini": "node vision-api-tester.js list gemini",
-    "vision:test:openrouter": "node vision-api-tester.js test openrouter",
-    "vision:test:gemini": "node vision-api-tester.js test gemini",
-    "vision:speed:gemini": "node vision-api-tester.js speed gemini"
+    "start": "node tools/server.js",
+    "dev:cors": "node tools/server.js",
+    "vision:list:openrouter": "node tools/vision-api-tester.js list openrouter",
+    "vision:list:gemini": "node tools/vision-api-tester.js list gemini",
+    "vision:test:openrouter": "node tools/vision-api-tester.js test openrouter",
+    "vision:test:gemini": "node tools/vision-api-tester.js test gemini",
+    "vision:speed:gemini": "node tools/vision-api-tester.js speed gemini"
   },
   "dependencies": {
     "dotenv": "^17.2.3",
